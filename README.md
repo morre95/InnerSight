@@ -1,6 +1,6 @@
 # InnerSight
 
-Recognizes UNO cards in images and live video. A fine-tuned YOLO detector finds each card and
+Recognizes the UNO card you hold up to a webcam. A fine-tuned YOLO detector finds the card and
 reads its rank, and HSV color analysis reads its color.
 
 ## Setup
@@ -9,18 +9,37 @@ reads its rank, and HSV color analysis reads its color.
 uv sync
 ```
 
+## Record your own cards
+
+No trained weights are included. The detector learns from images of your own deck, recorded with
+your own webcam:
+
+```bash
+uv run innersight capture
+```
+
+The tool walks through all 54 card designs and one step without a card. For each step it shows a
+card-shaped outline at six different places in the picture:
+
+1. Hold the card so it fills the outline, with your fingers covering as little of it as possible.
+2. Press `SPACE`. It records a short burst of frames and moves the outline.
+
+Press `S` to skip a card you do not have and `Q` to stop. Running the command again continues
+with the steps that are not recorded yet.
+
+The result is about 1,650 labeled images in `datasets/own-cards`, in the YOLO format. One position
+of every card is held back for validation. The images show you and your room; `datasets/` is
+ignored by git, so they stay on this machine.
+
 ## Train the detector
 
-No trained weights are included, so the detector has to be trained before anything runs.
+```bash
+uv run yolo detect train data=datasets/own-cards/data.yaml model=yolo26n.pt epochs=100 imgsz=640 fliplr=0.0 degrees=15.0
+```
 
-1. Get a UNO card dataset in YOLO format, labeled by rank (`0`–`9`, `skip`, `reverse`, `+2`,
-   `wild`, `+4`). Roboflow Universe hosts public ones; check their classes and licence. The class
-   names of the dataset become the ranks InnerSight reports.
-2. Train a nano model on it:
-
-   ```bash
-   uv run yolo detect train data=datasets/uno/data.yaml model=yolo26n.pt epochs=100 imgsz=640
-   ```
+- `fliplr=0.0` turns off mirroring, because a mirrored digit is not a real card.
+- `degrees=15.0` rotates the training images, because the outline is always upright but real
+  cards are held at an angle.
 
 Training prints where it saved the weights, normally `runs/detect/train/weights/best.pt`.
 
@@ -28,16 +47,16 @@ The detector does not learn color, so the default color augmentation is fine.
 
 ## Run
 
-On one image, printing the cards and saving an annotated copy:
-
-```bash
-uv run innersight image hand.jpg --weights runs/detect/train/weights/best.pt --output annotated.jpg
-```
-
 On a live camera feed (press `q` to quit):
 
 ```bash
 uv run innersight camera --weights runs/detect/train/weights/best.pt
+```
+
+On one image, printing the cards and saving an annotated copy:
+
+```bash
+uv run innersight image hand.jpg --weights runs/detect/train/weights/best.pt --output annotated.jpg
 ```
 
 ## Calibrate the colors

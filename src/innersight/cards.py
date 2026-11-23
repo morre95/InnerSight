@@ -1,4 +1,4 @@
-"""Domain types shared by detection, color classification and recognition."""
+"""Domain types shared by detection, color classification, recognition and capture."""
 
 from dataclasses import dataclass
 from enum import StrEnum
@@ -10,6 +10,39 @@ class CardColor(StrEnum):
     GREEN = "green"
     BLUE = "blue"
     WILD = "wild"
+
+
+COLORED_RANKS = ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "reverse", "+2")
+WILD_RANKS = ("wild", "+4")
+
+# The detector's classes, in class-id order.
+RANKS = COLORED_RANKS + WILD_RANKS
+
+
+@dataclass(frozen=True)
+class CardFace:
+    """One of the 54 distinct card designs in a UNO deck."""
+
+    color: CardColor
+    rank: str
+
+    @property
+    def label(self) -> str:
+        """Human-readable name, such as "red 7", "wild" or "wild +4"."""
+        if self.rank == self.color:  # the plain wild card has "wild" as both rank and color
+            return self.rank
+        return f"{self.color} {self.rank}"
+
+
+DECK: tuple[CardFace, ...] = (
+    *(
+        CardFace(color, rank)
+        for color in CardColor
+        if color is not CardColor.WILD
+        for rank in COLORED_RANKS
+    ),
+    *(CardFace(CardColor.WILD, rank) for rank in WILD_RANKS),
+)
 
 
 @dataclass(frozen=True)
@@ -43,4 +76,4 @@ class Card:
 
     @property
     def label(self) -> str:
-        return f"{self.color} {self.detection.rank}"
+        return CardFace(self.color, self.detection.rank).label
