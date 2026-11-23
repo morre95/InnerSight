@@ -1,13 +1,17 @@
 # InnerSight
 
-Recognizes the UNO card you hold up to a webcam. A fine-tuned YOLO detector finds the card and
-reads its rank, and HSV color analysis reads its color.
+Recognizes the UNO card you hold up to a webcam and says it aloud. A fine-tuned YOLO detector
+finds the card and reads its rank, HSV color analysis reads its color, and Pocket TTS speaks the
+result.
 
 ## Setup
 
 ```bash
 uv sync
 ```
+
+On Linux, speech also needs the PortAudio system library (`portaudio` on Arch, `libportaudio2`
+on Debian and Ubuntu).
 
 ## Record your own cards
 
@@ -52,6 +56,14 @@ On a live camera feed (press `q` to quit):
 ```bash
 uv run innersight camera --weights runs/detect/train/weights/best.pt
 ```
+
+When a card has been in view for a few frames, its color and rank are spoken in English, for
+example "red seven" or "wild draw four". The card is spoken again only after it changes or leaves
+the picture. Add `--mute` to turn speech off.
+
+The first run downloads the Pocket TTS model, about 225 MB, from Hugging Face. The voice is set
+by `VOICE` in [speech.py](src/innersight/speech.py); each Pocket TTS voice has its own licence,
+listed at [kyutai/tts-voices](https://huggingface.co/kyutai/tts-voices).
 
 On one image, printing the cards and saving an annotated copy:
 

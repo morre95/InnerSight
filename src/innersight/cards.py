@@ -29,9 +29,13 @@ class CardFace:
     @property
     def label(self) -> str:
         """Human-readable name, such as "red 7", "wild" or "wild +4"."""
+        return self.describe(self.rank)
+
+    def describe(self, rank_wording: str) -> str:
+        """Name the card with the given wording for its rank, such as "seven" for "7"."""
         if self.rank == self.color:  # the plain wild card has "wild" as both rank and color
-            return self.rank
-        return f"{self.color} {self.rank}"
+            return rank_wording
+        return f"{self.color} {rank_wording}"
 
 
 DECK: tuple[CardFace, ...] = (
@@ -75,5 +79,9 @@ class Card:
     color: CardColor
 
     @property
+    def face(self) -> CardFace:
+        return CardFace(self.color, self.detection.rank)
+
+    @property
     def label(self) -> str:
-        return CardFace(self.color, self.detection.rank).label
+        return self.face.label

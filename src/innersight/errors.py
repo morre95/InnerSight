@@ -11,3 +11,7 @@ class CameraError(InnerSightError):
 
 class DatasetWriteError(InnerSightError):
     pass
+
+
+class SpeechError(InnerSightError):
+    pass

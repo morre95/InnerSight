@@ -1,4 +1,4 @@
-"""Recognize UNO cards in an image or a live camera feed, and record training images."""
+"""Recognize UNO cards in an image or live on camera, say them aloud, and record training images."""
 
 import argparse
 import random
@@ -8,6 +8,7 @@ from pathlib import Path
 import cv2
 
 from innersight.annotation import draw_cards
+from innersight.announcement import CardAnnouncer
 from innersight.capture import CaptureSession
 from innersight.dataset import CardDataset
 from innersight.detector import YoloCardDetector
@@ -32,7 +33,7 @@ def _run_command(args: argparse.Namespace) -> None:
         case "image":
             _recognize_image(_load_detector(args), args.path, args.output)
         case "camera":
-            _recognize_camera(_load_detector(args), args.index)
+            _recognize_camera(_load_detector(args), args.index, _create_announcer(args.mute))
         case "capture":
             _capture_dataset(args.index, args.dataset)
 
@@ -62,11 +63,12 @@ def _parse_args() -> argparse.Namespace:
     image.add_argument("path", type=_existing_file, help="image to read")
     image.add_argument("--output", type=_image_output_path, help="write the annotated image here")
 
-    commands.add_parser(
+    camera = commands.add_parser(
         "camera",
         parents=[detector_options, camera_options],
-        help="recognize cards live; press q to quit",
+        help="recognize cards live and say them aloud; press q to quit",
     )
+    camera.add_argument("--mute", action="store_true", help="do not say the cards aloud")
 
     capture = commands.add_parser(
         "capture", parents=[camera_options], help="record training images of your own cards"
@@ -111,10 +113,26 @@ def _recognize_image(detector: CardDetector, image_path: Path, output_path: Path
         sys.exit(f"Could not write the annotated image to {output_path}")
 
 
-def _recognize_camera(detector: CardDetector, camera_index: int) -> None:
+def _create_announcer(is_muted: bool) -> CardAnnouncer:
+    if is_muted:
+        return CardAnnouncer(_stay_silent)
+    # Imported here because loading the audio library and the speech model is slow,
+    # and the other commands never speak.
+    from innersight.speech import PocketTtsVoice
+
+    return CardAnnouncer(PocketTtsVoice().say)
+
+
+def _stay_silent(phrase: str) -> None:
+    """Stand in for a voice when speech is muted."""
+
+
+def _recognize_camera(detector: CardDetector, camera_index: int, announcer: CardAnnouncer) -> None:
     with open_camera(camera_index) as frames:
         for frame in frames:
-            if show_frame(draw_cards(frame, recognize_cards(frame, detector))) == QUIT_KEY:
+            cards = recognize_cards(frame, detector)
+            announcer.observe(cards)
+            if show_frame(draw_cards(frame, cards)) == QUIT_KEY:
                 break
 
 
