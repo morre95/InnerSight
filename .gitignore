@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+
+# Local configuration
+.env
+
+# Training data, runs and model weights are large and reproducible
+datasets/
+runs/
+*.pt
