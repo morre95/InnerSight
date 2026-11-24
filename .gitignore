@@ -13,3 +13,4 @@ dist/
 datasets/
 runs/
 *.pt
+mobile/assets/models/*.onnx
