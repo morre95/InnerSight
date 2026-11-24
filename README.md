@@ -24,7 +24,7 @@ uv run innersight capture
 
 To add a second dataset:
 
-```
+```bash
  uv run innersight capture --index 1 --dataset datasets/phone-cards
 ```
 
@@ -76,6 +76,11 @@ you are happy with them, copy them to where InnerSight looks by default:
 
 ```bash
 mkdir -p weights && cp runs/detect/train/weights/best.pt weights/own-cards.pt
+```
+
+Add the wheights to flutter app:
+```bash
+uv run python scripts/export_mobile_model.py --weights weights/own-cards.pt
 ```
 
 `*.pt` files are ignored by git, so the weights stay on this machine. To try other weights
