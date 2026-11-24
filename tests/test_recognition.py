@@ -1,6 +1,6 @@
 import numpy as np
 
-from innersight.cards import Box, Card, CardColor, Detection
+from innersight.cards import CARD_BACK, Box, Card, CardColor, Detection
 from innersight.recognition import recognize_cards
 
 FRAME_HEIGHT = 200
@@ -32,6 +32,15 @@ def test_gives_each_detection_the_color_inside_its_box() -> None:
     cards = recognize_cards(frame, FakeDetector([left, right]))
 
     assert cards == [Card(left, CardColor.RED), Card(right, CardColor.BLUE)]
+
+
+def test_gives_the_back_no_color_of_its_own_even_when_its_box_is_red() -> None:
+    frame = make_frame_with_red_left_half_and_blue_right_half()
+    back = Detection(rank="back", confidence=0.9, box=Box(0, 0, 200, 200))
+
+    cards = recognize_cards(frame, FakeDetector([back]))
+
+    assert [card.face for card in cards] == [CARD_BACK]
 
 
 def test_returns_no_cards_when_nothing_is_detected() -> None:

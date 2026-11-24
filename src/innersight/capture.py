@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 
 from innersight.banner import add_banner
-from innersight.cards import DECK, Box
+from innersight.cards import BACK_RANK, DECK, Box
 from innersight.dataset import TRAIN_SPLIT, VALIDATION_SPLIT, CardDataset, LabeledCard
 from innersight.live_view import QUIT_KEY
 
@@ -53,6 +53,12 @@ CAPTURE_STEPS: tuple[CaptureStep, ...] = (
             rank=face.rank,
         )
         for face in DECK
+    ),
+    CaptureStep(
+        name="card_back",
+        title="card back",
+        prompt="Hold up: the back of any card",
+        rank=BACK_RANK,
     ),
     CaptureStep(
         name="background",

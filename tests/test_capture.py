@@ -54,6 +54,13 @@ def test_labels_a_card_frame_with_the_rank_of_the_card(fully_recorded_dir: Path)
     assert RANKS[class_id] == "7"
 
 
+def test_labels_a_card_back_frame_as_the_back(fully_recorded_dir: Path) -> None:
+    label = (fully_recorded_dir / "train" / "labels" / "card_back_p0_f0.txt").read_text()
+
+    class_id = int(label.split()[0])
+    assert RANKS[class_id] == "back"
+
+
 def test_labels_background_frames_with_no_card(fully_recorded_dir: Path) -> None:
     label = (fully_recorded_dir / "train" / "labels" / "background_p0_f0.txt").read_text()
 

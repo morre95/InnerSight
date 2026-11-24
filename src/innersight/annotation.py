@@ -11,6 +11,7 @@ OUTLINE_BGR: dict[CardColor, tuple[int, int, int]] = {
     CardColor.GREEN: (0, 200, 0),
     CardColor.BLUE: (255, 0, 0),
     CardColor.WILD: (255, 0, 255),
+    CardColor.BACK: (255, 255, 255),
 }
 OUTLINE_THICKNESS = 2
 LABEL_FONT = cv2.FONT_HERSHEY_SIMPLEX

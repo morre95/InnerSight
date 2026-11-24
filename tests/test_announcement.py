@@ -1,7 +1,7 @@
 import pytest
 
 from innersight.announcement import SPOKEN_RANKS, STABLE_FRAME_COUNT, CardAnnouncer, spoken_name
-from innersight.cards import RANKS, Box, Card, CardColor, CardFace, Detection
+from innersight.cards import CARD_BACK, RANKS, Box, Card, CardColor, CardFace, Detection
 
 NO_CARDS: list[Card] = []
 
@@ -31,6 +31,7 @@ def show(announcer: CardAnnouncer, cards: list[Card], frame_count: int) -> None:
         (CardFace(CardColor.BLUE, "+2"), "blue draw two"),
         (CardFace(CardColor.WILD, "wild"), "wild"),
         (CardFace(CardColor.WILD, "+4"), "wild draw four"),
+        (CARD_BACK, "card back"),
     ],
 )
 def test_speaks_the_color_and_then_the_rank_in_words(face: CardFace, expected_words: str) -> None:

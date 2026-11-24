@@ -25,11 +25,12 @@ SPOKEN_RANKS = {
     "+2": "draw two",
     "wild": "wild",
     "+4": "draw four",
+    "back": "card back",
 }
 
 
 def spoken_name(face: CardFace) -> str:
-    """What to say for a card, such as "red seven" or "wild draw four".
+    """What to say for a card, such as "red seven", "wild draw four" or "card back".
 
     A rank the detector was trained with under another name is spoken as it is written.
     """

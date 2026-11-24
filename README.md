@@ -22,7 +22,7 @@ your own webcam:
 uv run innersight capture
 ```
 
-The tool walks through all 54 card designs and one step without a card. For each step it shows a
+The tool walks through all 54 card designs, the back of a card and one step without a card. For each step it shows a
 card-shaped outline at six different places in the picture:
 
 1. Hold the card so it fills the outline, with your fingers covering as little of it as possible.
@@ -31,7 +31,7 @@ card-shaped outline at six different places in the picture:
 Press `S` to skip a card you do not have and `Q` to stop. Running the command again continues
 with the positions that are not recorded yet.
 
-The result is about 1,650 labeled images in `datasets/own-cards`, in the YOLO format. One position
+The result is about 1,700 labeled images in `datasets/own-cards`, in the YOLO format. One position
 of every card is held back for validation. The images show you and your room; `datasets/` is
 ignored by git, so they stay on this machine.
 
@@ -77,7 +77,8 @@ uv run innersight camera --weights runs/detect/train/weights/best.pt
 ```
 
 When a card has been in view for a few frames, its color and rank are spoken in English, for
-example "red seven" or "wild draw four". The card is spoken again only after it changes or leaves
+example "red seven" or "wild draw four". A card held with its back to the camera is spoken as
+"card back". The card is spoken again only after it changes or leaves
 the picture. Add `--mute` to turn speech off.
 
 The first run downloads the Pocket TTS model, about 225 MB, from Hugging Face. The voice is set

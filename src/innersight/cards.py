@@ -10,43 +10,47 @@ class CardColor(StrEnum):
     GREEN = "green"
     BLUE = "blue"
     WILD = "wild"
+    BACK = "back"
 
+
+SUIT_COLORS = (CardColor.RED, CardColor.YELLOW, CardColor.GREEN, CardColor.BLUE)
 
 COLORED_RANKS = ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "reverse", "+2")
 WILD_RANKS = ("wild", "+4")
+BACK_RANK = "back"
 
-# The detector's classes, in class-id order.
-RANKS = COLORED_RANKS + WILD_RANKS
+# The detector's classes, in class-id order. New classes go last, so that the class ids in
+# label files that are already recorded keep their meaning.
+RANKS = (*COLORED_RANKS, *WILD_RANKS, BACK_RANK)
 
 
 @dataclass(frozen=True)
 class CardFace:
-    """One of the 54 distinct card designs in a UNO deck."""
+    """What one side of a card shows: one of the 54 designs in a UNO deck, or the back."""
 
     color: CardColor
     rank: str
 
     @property
     def label(self) -> str:
-        """Human-readable name, such as "red 7", "wild" or "wild +4"."""
+        """Human-readable name, such as "red 7", "wild", "wild +4" or "back"."""
         return self.describe(self.rank)
 
     def describe(self, rank_wording: str) -> str:
         """Name the card with the given wording for its rank, such as "seven" for "7"."""
-        if self.rank == self.color:  # the plain wild card has "wild" as both rank and color
+        # The plain wild card and the back have the same word as both rank and color.
+        if self.rank == self.color:
             return rank_wording
         return f"{self.color} {rank_wording}"
 
 
 DECK: tuple[CardFace, ...] = (
-    *(
-        CardFace(color, rank)
-        for color in CardColor
-        if color is not CardColor.WILD
-        for rank in COLORED_RANKS
-    ),
+    *(CardFace(color, rank) for color in SUIT_COLORS for rank in COLORED_RANKS),
     *(CardFace(CardColor.WILD, rank) for rank in WILD_RANKS),
 )
+
+# Every card has the same back, so it is not one of the designs in the deck.
+CARD_BACK = CardFace(CardColor.BACK, BACK_RANK)
 
 
 @dataclass(frozen=True)

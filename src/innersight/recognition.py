@@ -4,7 +4,7 @@ from typing import Protocol
 
 import numpy as np
 
-from innersight.cards import Box, Card, Detection
+from innersight.cards import BACK_RANK, Box, Card, CardColor, Detection
 from innersight.color import classify_card_color
 
 
@@ -14,9 +14,16 @@ class CardDetector(Protocol):
 
 def recognize_cards(frame_bgr: np.ndarray, detector: CardDetector) -> list[Card]:
     return [
-        Card(detection=detection, color=classify_card_color(_crop(frame_bgr, detection.box)))
+        Card(detection=detection, color=_read_color(frame_bgr, detection))
         for detection in detector.detect(frame_bgr)
     ]
+
+
+def _read_color(frame_bgr: np.ndarray, detection: Detection) -> CardColor:
+    """The back looks the same on every card, so its red logo says nothing about a color."""
+    if detection.rank == BACK_RANK:
+        return CardColor.BACK
+    return classify_card_color(_crop(frame_bgr, detection.box))
 
 
 def _crop(frame_bgr: np.ndarray, box: Box) -> np.ndarray:
