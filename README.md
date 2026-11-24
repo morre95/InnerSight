@@ -64,7 +64,15 @@ uv run yolo detect train data=datasets/own-cards/data.yaml model=yolo26n.pt epoc
 - `degrees=15.0` rotates the training images, because the outline is always upright but real
   cards are held at an angle.
 
-Training prints where it saved the weights, normally `runs/detect/train/weights/best.pt`.
+Training prints where it saved the weights, normally `runs/detect/train/weights/best.pt`. When
+you are happy with them, copy them to where InnerSight looks by default:
+
+```bash
+mkdir -p weights && cp runs/detect/train/weights/best.pt weights/own-cards.pt
+```
+
+`*.pt` files are ignored by git, so the weights stay on this machine. To try other weights
+without replacing these, add `--weights path/to/best.pt` to the commands below.
 
 The detector does not learn color, so the default color augmentation is fine.
 
@@ -73,7 +81,7 @@ The detector does not learn color, so the default color augmentation is fine.
 On a live camera feed (press `q` to quit):
 
 ```bash
-uv run innersight camera --weights runs/detect/train/weights/best.pt
+uv run innersight camera
 ```
 
 When a card has been in view for a few frames, its color and rank are spoken in English, for
@@ -88,7 +96,7 @@ listed at [kyutai/tts-voices](https://huggingface.co/kyutai/tts-voices).
 On one image, printing the cards and saving an annotated copy:
 
 ```bash
-uv run innersight image hand.jpg --weights runs/detect/train/weights/best.pt --output annotated.jpg
+uv run innersight image hand.jpg --output annotated.jpg
 ```
 
 ## Calibrate the colors

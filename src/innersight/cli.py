@@ -25,6 +25,7 @@ from innersight.review import ReviewSession
 
 DEFAULT_MIN_CONFIDENCE = 0.5
 DEFAULT_DATASET_DIR = Path("datasets/own-cards")
+DEFAULT_WEIGHTS_FILE = Path("weights/own-cards.pt")
 
 
 def main() -> None:
@@ -65,7 +66,11 @@ def _add_recognition_commands(
 ) -> None:
     detector_options = argparse.ArgumentParser(add_help=False)
     detector_options.add_argument(
-        "--weights", type=_existing_file, required=True, help="trained detector weights (.pt)"
+        "--weights",
+        type=_existing_file,
+        # A string, so that argparse checks the default with _existing_file as well.
+        default=str(DEFAULT_WEIGHTS_FILE),
+        help="trained detector weights (default: %(default)s)",
     )
     detector_options.add_argument(
         "--min-confidence",
