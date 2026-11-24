@@ -2,7 +2,7 @@
   "input_size": 640,
   "output_shape": [
     1,
-    23,
+    20,
     8400
   ],
   "ranks": [
@@ -21,10 +21,7 @@
     "+2",
     "wild",
     "+4",
-    "back",
-    "shuffle",
-    "joker",
-    "customizable"
+    "back"
   ],
   "wild_ranks": [
     "wild",
