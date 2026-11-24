@@ -43,6 +43,15 @@ def test_gives_the_back_no_color_of_its_own_even_when_its_box_is_red() -> None:
     assert [card.face for card in cards] == [CARD_BACK]
 
 
+def test_calls_a_wild_card_wild_even_when_its_box_is_red() -> None:
+    frame = make_frame_with_red_left_half_and_blue_right_half()
+    joker = Detection(rank="joker", confidence=0.9, box=Box(0, 0, 200, 200))
+
+    cards = recognize_cards(frame, FakeDetector([joker]))
+
+    assert cards == [Card(joker, CardColor.WILD)]
+
+
 def test_returns_no_cards_when_nothing_is_detected() -> None:
     frame = make_frame_with_red_left_half_and_blue_right_half()
 

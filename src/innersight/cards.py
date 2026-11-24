@@ -16,24 +16,27 @@ class CardColor(StrEnum):
 SUIT_COLORS = (CardColor.RED, CardColor.YELLOW, CardColor.GREEN, CardColor.BLUE)
 
 COLORED_RANKS = ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "reverse", "+2")
-WILD_RANKS = ("wild", "+4")
+STANDARD_WILD_RANKS = ("wild", "+4")
+# Wild cards that only some decks have.
+EXTRA_WILD_RANKS = ("shuffle", "joker")
+WILD_RANKS = STANDARD_WILD_RANKS + EXTRA_WILD_RANKS
 BACK_RANK = "back"
 
 # The detector's classes, in class-id order. New classes go last, so that the class ids in
 # label files that are already recorded keep their meaning.
-RANKS = (*COLORED_RANKS, *WILD_RANKS, BACK_RANK)
+RANKS = (*COLORED_RANKS, *STANDARD_WILD_RANKS, BACK_RANK, *EXTRA_WILD_RANKS)
 
 
 @dataclass(frozen=True)
 class CardFace:
-    """What one side of a card shows: one of the 54 designs in a UNO deck, or the back."""
+    """What one side of a card shows: one of the 56 designs in a UNO deck, or the back."""
 
     color: CardColor
     rank: str
 
     @property
     def label(self) -> str:
-        """Human-readable name, such as "red 7", "wild", "wild +4" or "back"."""
+        """Human-readable name, such as "red 7", "wild", "wild +4", "wild joker" or "back"."""
         return self.describe(self.rank)
 
     def describe(self, rank_wording: str) -> str:

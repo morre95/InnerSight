@@ -31,6 +31,8 @@ def show(announcer: CardAnnouncer, cards: list[Card], frame_count: int) -> None:
         (CardFace(CardColor.BLUE, "+2"), "blue draw two"),
         (CardFace(CardColor.WILD, "wild"), "wild"),
         (CardFace(CardColor.WILD, "+4"), "wild draw four"),
+        (CardFace(CardColor.WILD, "shuffle"), "wild shuffle"),
+        (CardFace(CardColor.WILD, "joker"), "wild joker"),
         (CARD_BACK, "card back"),
     ],
 )

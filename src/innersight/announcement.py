@@ -26,6 +26,8 @@ SPOKEN_RANKS = {
     "wild": "wild",
     "+4": "draw four",
     "back": "card back",
+    "shuffle": "shuffle",
+    "joker": "joker",
 }
 
 
