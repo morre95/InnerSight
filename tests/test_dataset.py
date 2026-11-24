@@ -7,7 +7,7 @@ import yaml
 
 from innersight.cards import RANKS, Box
 from innersight.dataset import TRAIN_SPLIT, CardDataset, LabeledCard
-from innersight.errors import DatasetWriteError
+from innersight.errors import DatasetReadError, DatasetWriteError
 
 FRAME_HEIGHT = 100
 FRAME_WIDTH = 200
@@ -69,3 +69,26 @@ def test_raises_dataset_write_error_when_the_directory_cannot_be_created(tmp_pat
 
     with pytest.raises(DatasetWriteError):
         CardDataset(file_in_the_way).write_example(TRAIN_SPLIT, "background", make_frame(), [])
+
+
+def test_reads_back_the_cards_it_wrote(tmp_path: Path) -> None:
+    dataset = CardDataset(tmp_path)
+    dataset.write_example(TRAIN_SPLIT, "red_skip", make_frame(), [SKIP_CARD_IN_THE_MIDDLE])
+
+    _, cards = dataset.read_example(TRAIN_SPLIT, "red_skip")
+
+    assert cards == [SKIP_CARD_IN_THE_MIDDLE]
+
+
+def test_reads_back_the_frame_it_wrote(tmp_path: Path) -> None:
+    dataset = CardDataset(tmp_path)
+    dataset.write_example(TRAIN_SPLIT, "background", make_frame(), [])
+
+    frame, _ = dataset.read_example(TRAIN_SPLIT, "background")
+
+    assert frame.shape == (FRAME_HEIGHT, FRAME_WIDTH, 3)
+
+
+def test_raises_dataset_read_error_for_an_example_that_does_not_exist(tmp_path: Path) -> None:
+    with pytest.raises(DatasetReadError):
+        CardDataset(tmp_path).read_example(TRAIN_SPLIT, "missing")

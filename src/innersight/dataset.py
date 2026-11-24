@@ -9,7 +9,7 @@ import numpy as np
 import yaml
 
 from innersight.cards import RANKS, Box
-from innersight.errors import DatasetWriteError
+from innersight.errors import DatasetReadError, DatasetWriteError
 
 TRAIN_SPLIT = "train"
 VALIDATION_SPLIT = "valid"
@@ -52,7 +52,7 @@ class CardDataset:
     ) -> None:
         """Save the frame and its labels. A frame without cards becomes a background example."""
         image_file = self._image_file(split, name)
-        label_file = self._directory / split / "labels" / f"{name}.txt"
+        label_file = self._label_file(split, name)
         frame_height, frame_width = frame_bgr.shape[:2]
         label_lines = [_format_label_line(card, frame_width, frame_height) for card in cards]
         try:
@@ -65,8 +65,27 @@ class CardDataset:
         if not is_image_written:
             raise DatasetWriteError(f"Could not write {image_file}")
 
+    def read_example(self, split: str, name: str) -> tuple[np.ndarray, list[LabeledCard]]:
+        """Load a saved frame and the cards its label file places in it."""
+        image_file = self._image_file(split, name)
+        label_file = self._label_file(split, name)
+        frame_bgr = cv2.imread(str(image_file))
+        if frame_bgr is None:
+            raise DatasetReadError(f"Could not read {image_file}")
+        try:
+            label_lines = label_file.read_text().splitlines()
+        except OSError as error:
+            raise DatasetReadError(f"Could not read {label_file}: {error}") from error
+        frame_height, frame_width = frame_bgr.shape[:2]
+        return frame_bgr, [
+            _parse_label_line(line, frame_width, frame_height) for line in label_lines
+        ]
+
     def _image_file(self, split: str, name: str) -> Path:
         return self._directory / split / "images" / f"{name}.jpg"
+
+    def _label_file(self, split: str, name: str) -> Path:
+        return self._directory / split / "labels" / f"{name}.txt"
 
 
 def _format_label_line(card: LabeledCard, frame_width: int, frame_height: int) -> str:
@@ -78,3 +97,15 @@ def _format_label_line(card: LabeledCard, frame_width: int, frame_height: int) -
     height = (box.y2 - box.y1) / frame_height
     class_id = RANKS.index(card.rank)
     return f"{class_id} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}\n"
+
+
+def _parse_label_line(line: str, frame_width: int, frame_height: int) -> LabeledCard:
+    class_id, *fractions = line.split()
+    x_center, y_center, width, height = (float(fraction) for fraction in fractions)
+    box = Box(
+        x1=round((x_center - width / 2) * frame_width),
+        y1=round((y_center - height / 2) * frame_height),
+        x2=round((x_center + width / 2) * frame_width),
+        y2=round((y_center + height / 2) * frame_height),
+    )
+    return LabeledCard(RANKS[int(class_id)], box)

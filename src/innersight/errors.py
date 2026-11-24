@@ -9,6 +9,10 @@ class CameraError(InnerSightError):
     pass
 
 
+class DatasetReadError(InnerSightError):
+    pass
+
+
 class DatasetWriteError(InnerSightError):
     pass
 

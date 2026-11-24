@@ -29,11 +29,30 @@ card-shaped outline at six different places in the picture:
 2. Press `SPACE`. It records a short burst of frames and moves the outline.
 
 Press `S` to skip a card you do not have and `Q` to stop. Running the command again continues
-with the steps that are not recorded yet.
+with the positions that are not recorded yet.
 
 The result is about 1,650 labeled images in `datasets/own-cards`, in the YOLO format. One position
 of every card is held back for validation. The images show you and your room; `datasets/` is
 ignored by git, so they stay on this machine.
+
+## Review the recordings
+
+```bash
+uv run innersight review
+```
+
+The tool shows each recorded position as its five frames side by side, with a green box where
+the label says the card is. Look for a card that does not fill the box, the wrong card, blur, or
+fingers over the symbols.
+
+- `SPACE` keeps the position and moves on.
+- `R` marks it for re-capture.
+- `B` goes back one position.
+- `Q`, or closing the window, finishes the review.
+
+When the review is finished, the camera opens and you record the marked positions again, the same
+way as in `capture`. The old images are replaced only when the new ones are recorded, so stopping
+early loses nothing.
 
 ## Train the detector
 

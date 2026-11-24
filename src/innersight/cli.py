@@ -1,4 +1,4 @@
-"""Recognize UNO cards in an image or live on camera, say them aloud, and record training images."""
+"""Recognize UNO cards in an image or on camera, and record and review training images."""
 
 import argparse
 import random
@@ -9,12 +9,19 @@ import cv2
 
 from innersight.annotation import draw_cards
 from innersight.announcement import CardAnnouncer
-from innersight.capture import CaptureSession
+from innersight.capture import ALL_BURSTS, CaptureSession
 from innersight.dataset import CardDataset
 from innersight.detector import YoloCardDetector
 from innersight.errors import InnerSightError
-from innersight.live_view import QUIT_KEY, open_camera, show_frame
+from innersight.live_view import (
+    QUIT_KEY,
+    close_window,
+    open_camera,
+    show_frame,
+    show_frame_until_key,
+)
 from innersight.recognition import CardDetector, recognize_cards
+from innersight.review import ReviewSession
 
 DEFAULT_MIN_CONFIDENCE = 0.5
 DEFAULT_DATASET_DIR = Path("datasets/own-cards")
@@ -36,9 +43,26 @@ def _run_command(args: argparse.Namespace) -> None:
             _recognize_camera(_load_detector(args), args.index, _create_announcer(args.mute))
         case "capture":
             _capture_dataset(args.index, args.dataset)
+        case "review":
+            _review_dataset(args.index, args.dataset)
 
 
 def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="innersight", description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    camera_options = argparse.ArgumentParser(add_help=False)
+    camera_options.add_argument(
+        "--index", type=int, default=0, help="camera device (default: %(default)s)"
+    )
+    _add_recognition_commands(commands, camera_options)
+    _add_dataset_commands(commands, camera_options)
+    return parser.parse_args()
+
+
+def _add_recognition_commands(
+    commands: "argparse._SubParsersAction[argparse.ArgumentParser]",
+    camera_options: argparse.ArgumentParser,
+) -> None:
     detector_options = argparse.ArgumentParser(add_help=False)
     detector_options.add_argument(
         "--weights", type=_existing_file, required=True, help="trained detector weights (.pt)"
@@ -49,13 +73,6 @@ def _parse_args() -> argparse.Namespace:
         default=DEFAULT_MIN_CONFIDENCE,
         help="ignore detections below this confidence (default: %(default)s)",
     )
-    camera_options = argparse.ArgumentParser(add_help=False)
-    camera_options.add_argument(
-        "--index", type=int, default=0, help="camera device (default: %(default)s)"
-    )
-
-    parser = argparse.ArgumentParser(prog="innersight", description=__doc__)
-    commands = parser.add_subparsers(dest="command", required=True)
 
     image = commands.add_parser(
         "image", parents=[detector_options], help="recognize the cards in one image"
@@ -70,17 +87,28 @@ def _parse_args() -> argparse.Namespace:
     )
     camera.add_argument("--mute", action="store_true", help="do not say the cards aloud")
 
-    capture = commands.add_parser(
-        "capture", parents=[camera_options], help="record training images of your own cards"
-    )
-    capture.add_argument(
+
+def _add_dataset_commands(
+    commands: "argparse._SubParsersAction[argparse.ArgumentParser]",
+    camera_options: argparse.ArgumentParser,
+) -> None:
+    dataset_options = argparse.ArgumentParser(add_help=False)
+    dataset_options.add_argument(
         "--dataset",
         type=Path,
         default=DEFAULT_DATASET_DIR,
-        help="dataset directory to fill (default: %(default)s)",
+        help="dataset directory (default: %(default)s)",
     )
-
-    return parser.parse_args()
+    commands.add_parser(
+        "capture",
+        parents=[camera_options, dataset_options],
+        help="record training images of your own cards",
+    )
+    commands.add_parser(
+        "review",
+        parents=[camera_options, dataset_options],
+        help="look through the recorded images and re-capture the bad ones",
+    )
 
 
 def _existing_file(value: str) -> Path:
@@ -137,6 +165,28 @@ def _recognize_camera(detector: CardDetector, camera_index: int, announcer: Card
 
 
 def _capture_dataset(camera_index: int, dataset_dir: Path) -> None:
+    dataset = CardDataset(dataset_dir)
+    missing_bursts = [burst for burst in ALL_BURSTS if not burst.is_recorded_in(dataset)]
+    if not missing_bursts:
+        print(f"Everything is recorded in {dataset_dir}. Use 'innersight review' to redo images.")
+        return
     with open_camera(camera_index) as frames:
-        CaptureSession(frames, show_frame, CardDataset(dataset_dir), random.Random()).run()
+        CaptureSession(frames, show_frame, dataset, random.Random()).record(missing_bursts)
     print(f"Recorded images are in {dataset_dir}. Run this again to record what is missing.")
+
+
+def _review_dataset(camera_index: int, dataset_dir: Path) -> None:
+    dataset = CardDataset(dataset_dir)
+    recorded_bursts = [burst for burst in ALL_BURSTS if burst.is_recorded_in(dataset)]
+    if not recorded_bursts:
+        sys.exit(f"No recorded images found in {dataset_dir}")
+    try:
+        rejected_bursts = ReviewSession(show_frame_until_key, dataset).run(recorded_bursts)
+    finally:
+        close_window()
+    if not rejected_bursts:
+        print("Nothing was marked for re-capture.")
+        return
+    print(f"Re-capturing {len(rejected_bursts)} of {len(recorded_bursts)} recorded positions.")
+    with open_camera(camera_index) as frames:
+        CaptureSession(frames, show_frame, dataset, random.Random()).record(rejected_bursts)

@@ -10,6 +10,9 @@ from innersight.errors import CameraError
 
 WINDOW_TITLE = "InnerSight"
 QUIT_KEY = ord("q")
+# What OpenCV reports, masked to one byte, when no key was pressed.
+NO_KEY = 255
+KEY_POLL_MILLISECONDS = 50
 
 
 @contextmanager
@@ -32,6 +35,32 @@ def show_frame(frame_bgr: np.ndarray) -> int:
     """
     cv2.imshow(WINDOW_TITLE, frame_bgr)
     return cv2.waitKey(1) & 0xFF
+
+
+def show_frame_until_key(frame_bgr: np.ndarray) -> int:
+    """Show the frame and wait until a key is pressed in the window; return the key's code.
+
+    Closing the window counts as pressing the quit key.
+    """
+    cv2.imshow(WINDOW_TITLE, frame_bgr)
+    while True:
+        key = cv2.waitKey(KEY_POLL_MILLISECONDS) & 0xFF
+        if key != NO_KEY:
+            return key
+        if not _is_window_open():
+            return QUIT_KEY
+
+
+def close_window() -> None:
+    cv2.destroyAllWindows()
+
+
+def _is_window_open() -> bool:
+    """OpenCV reports a closed window as not visible, or as an error once no window is left."""
+    try:
+        return cv2.getWindowProperty(WINDOW_TITLE, cv2.WND_PROP_VISIBLE) >= 1
+    except cv2.error:
+        return False
 
 
 def _read_frames(capture: cv2.VideoCapture, camera_index: int) -> Iterator[np.ndarray]:
