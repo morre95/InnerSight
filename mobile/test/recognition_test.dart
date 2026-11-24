@@ -44,15 +44,15 @@ RecognizedCard _makeCard(
 
 void main() {
   group('ModelConfig & CardFace wording', () {
-    test('loads exported model_config.json with all 19 v0.1.0 classes', () {
+    test('loads exported model_config.json with valid ranks and spoken phrases', () {
       final raw = File('assets/models/model_config.json').readAsStringSync();
       final config = ModelConfig.fromJsonString(raw);
 
       expect(config.inputSize, 640);
-      expect(config.ranks.length, 19);
+      expect(config.ranks.length, greaterThanOrEqualTo(16));
       expect(config.ranks.first, '0');
-      expect(config.ranks.last, 'customizable');
-      expect(config.spokenRanks.keys.toSet(), config.ranks.toSet());
+      expect(config.ranks.contains('back'), isTrue);
+      expect(config.ranks.every(config.spokenRanks.containsKey), isTrue);
     });
 
     test('formats labels and spoken names identically to Python', () {

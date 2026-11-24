@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
@@ -26,20 +27,21 @@ class OnnxCardDetector implements CardDetector {
   }) async {
     final configJson = await rootBundle.loadString(configAsset);
     final config = ModelConfig.fromJsonString(configJson);
+    final modelPath = await _materializeModelAsset(modelAsset);
     final ort = OnnxRuntime();
 
     OrtSession session;
     try {
-      session = await ort.createSessionFromAsset(
-        modelAsset,
+      session = await ort.createSession(
+        modelPath,
         options: OrtSessionOptions(
           intraOpNumThreads: 4,
           providers: [OrtProvider.XNNPACK, OrtProvider.CPU],
         ),
       );
     } catch (_) {
-      session = await ort.createSessionFromAsset(
-        modelAsset,
+      session = await ort.createSession(
+        modelPath,
         options: OrtSessionOptions(intraOpNumThreads: 4),
       );
     }
@@ -50,6 +52,35 @@ class OnnxCardDetector implements CardDetector {
       minConfidence: minConfidence,
       iouThreshold: iouThreshold,
     );
+  }
+
+  /// Writes [modelAsset] to a content-hashed file in [Directory.systemTemp] so
+  /// re-exporting new weights with the same asset name never loads a stale cache.
+  static Future<String> _materializeModelAsset(String modelAsset) async {
+    final byteData = await rootBundle.load(modelAsset);
+    final bytes = byteData.buffer.asUint8List(
+      byteData.offsetInBytes,
+      byteData.lengthInBytes,
+    );
+
+    // 32-bit FNV-1a fingerprint sampled across the buffer + exact byte length.
+    var hash = 0x811c9dc5;
+    final step = math.max(1, bytes.length ~/ 4096);
+    for (var i = 0; i < bytes.length; i += step) {
+      hash ^= bytes[i];
+      hash = (hash * 0x01000193) & 0xffffffff;
+    }
+    final hexHash = hash.toRadixString(16).padLeft(8, '0');
+    final file = File(
+      '${Directory.systemTemp.path}${Platform.pathSeparator}'
+      'own-cards-${bytes.length}-$hexHash.onnx',
+    );
+    if (!await file.exists()) {
+      final tmp = File('${file.path}.tmp');
+      await tmp.writeAsBytes(bytes, flush: true);
+      await tmp.rename(file.path);
+    }
+    return file.path;
   }
 
   final OrtSession _session;
@@ -134,9 +165,13 @@ List<Detection> decodeYoloOutput({
   required int imageWidth,
   required int imageHeight,
 }) {
-  final numClasses = ranks.length;
-  final expectedLength = (4 + numClasses) * numAnchors;
-  if (rawOutput.length < expectedLength || letterboxScale <= 0) {
+  if (numAnchors <= 0 || letterboxScale <= 0) {
+    return const [];
+  }
+  final tensorChannels = rawOutput.length ~/ numAnchors;
+  final tensorClasses = tensorChannels - 4;
+  final usableClasses = math.min(ranks.length, tensorClasses);
+  if (usableClasses <= 0 || rawOutput.length < tensorChannels * numAnchors) {
     return const [];
   }
 
@@ -144,7 +179,7 @@ List<Detection> decodeYoloOutput({
   for (var anchor = 0; anchor < numAnchors; anchor++) {
     var bestClass = -1;
     var bestScore = minConfidence;
-    for (var cls = 0; cls < numClasses; cls++) {
+    for (var cls = 0; cls < usableClasses; cls++) {
       final score = rawOutput[(4 + cls) * numAnchors + anchor].toDouble();
       if (score > bestScore || (bestClass == -1 && score >= minConfidence)) {
         bestScore = score;

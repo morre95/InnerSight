@@ -40,9 +40,11 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen>
   List<CameraDescription> _cameras = const [];
   int _selectedCameraIndex = 0;
   CameraController? _cameraController;
+  Future<void> _cameraQueue = Future<void>.value();
 
   bool _isInitializing = true;
   bool _isProcessing = false;
+  bool _suspendedForBackground = false;
   String? _errorMessage;
 
   double _minConfidence = 0.50;
@@ -61,6 +63,16 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen>
     unawaited(_bootstrap());
   }
 
+  /// Serializes camera open/switch/dispose calls so CameraX singleton state
+  /// can never be mutated concurrently (e.g. during permission dialog resume).
+  Future<void> _enqueueCameraOp(Future<void> Function() action) {
+    final next = _cameraQueue.then((_) => action()).catchError((Object error, StackTrace stack) {
+      debugPrint('Camera operation error: $error\n$stack');
+    });
+    _cameraQueue = next;
+    return next;
+  }
+
   void _onAnnounce(String phrase) {
     unawaited(_speaker.say(phrase));
     if (!mounted) return;
@@ -70,52 +82,110 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen>
     });
   }
 
-  Future<void> _bootstrap() async {
-    setState(() {
-      _isInitializing = true;
-      _errorMessage = null;
-    });
-
-    try {
-      await _speaker.initialize();
-      final detector = _detector ??
-          await OnnxCardDetector.fromAssets(minConfidence: _minConfidence);
-      _detector = detector;
-      _announcer = CardAnnouncer(
-        say: _onAnnounce,
-        spokenRanks: detector.config.spokenRanks,
-      );
-
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) {
-        setState(() {
-          _errorMessage = 'No cameras found on this device.';
-          _isInitializing = false;
-        });
-        return;
+  List<CameraDescription> _selectPrimaryCameras(List<CameraDescription> allCameras) {
+    CameraDescription? primaryBack;
+    CameraDescription? primaryFront;
+    for (final cam in allCameras) {
+      if (cam.lensDirection == CameraLensDirection.back && primaryBack == null) {
+        primaryBack = cam;
+      } else if (cam.lensDirection == CameraLensDirection.front && primaryFront == null) {
+        primaryFront = cam;
       }
+    }
+    final primary = <CameraDescription>[
+      ?primaryBack,
+      ?primaryFront,
+    ];
+    return primary.isNotEmpty ? primary : allCameras;
+  }
 
-      final backIdx = cameras.indexWhere(
-        (cam) => cam.lensDirection == CameraLensDirection.back,
-      );
-      _cameras = cameras;
-      _selectedCameraIndex = backIdx >= 0 ? backIdx : 0;
+  String _compactErrorMessage(Object error) {
+    if (error is CameraException) {
+      final rawDesc = (error.description ?? '').trim();
+      final firstLine = rawDesc.isEmpty
+          ? 'Please grant camera permission and try again.'
+          : rawDesc.split('\n').first.trim();
+      return 'Camera error (${error.code}): $firstLine';
+    }
+    if (error is PlatformException) {
+      final rawMsg = (error.message ?? '').trim();
+      final firstLine = rawMsg.isEmpty ? error.code : rawMsg.split('\n').first.trim();
+      return 'Platform error: $firstLine';
+    }
+    return error.toString().split('\n').first.trim();
+  }
 
-      await _startCamera(_cameras[_selectedCameraIndex]);
+  Future<void> _safeDisposeController(CameraController? controller) async {
+    if (controller == null) return;
+    try {
+      if (controller.value.isInitialized && controller.value.isStreamingImages) {
+        await controller.stopImageStream();
+      }
     } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Initialization failed: $error';
-        _isInitializing = false;
-      });
+      debugPrint('Ignored stopImageStream error during dispose: $error');
+    }
+    try {
+      await controller.dispose();
+    } catch (error) {
+      debugPrint('Ignored controller.dispose error: $error');
     }
   }
 
-  Future<void> _startCamera(CameraDescription description) async {
+  Future<void> _bootstrap() {
+    return _enqueueCameraOp(() async {
+      if (!mounted) return;
+      setState(() {
+        _isInitializing = true;
+        _errorMessage = null;
+      });
+
+      try {
+        await _speaker.initialize();
+        final detector =
+            _detector ?? await OnnxCardDetector.fromAssets(minConfidence: _minConfidence);
+        _detector = detector;
+        _announcer = CardAnnouncer(
+          say: _onAnnounce,
+          spokenRanks: detector.config.spokenRanks,
+        );
+
+        final discovered = await availableCameras();
+        if (discovered.isEmpty) {
+          if (!mounted) return;
+          setState(() {
+            _errorMessage = 'No cameras found on this device.';
+            _isInitializing = false;
+          });
+          return;
+        }
+
+        _cameras = _selectPrimaryCameras(discovered);
+        _selectedCameraIndex = 0;
+
+        await _startCameraInternal(_cameras[_selectedCameraIndex]);
+      } catch (error, stack) {
+        debugPrint('Bootstrap error: $error\n$stack');
+        if (!mounted) return;
+        setState(() {
+          _errorMessage = 'Initialization failed: ${_compactErrorMessage(error)}';
+          _isInitializing = false;
+        });
+      }
+    });
+  }
+
+  Future<void> _startCameraInternal(CameraDescription description) async {
     final previous = _cameraController;
     if (previous != null) {
-      _cameraController = null;
-      await previous.dispose();
+      if (mounted) {
+        setState(() {
+          _cameraController = null;
+          _cards = const [];
+        });
+      } else {
+        _cameraController = null;
+      }
+      await _safeDisposeController(previous);
     }
 
     final controller = CameraController(
@@ -127,28 +197,35 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen>
 
     try {
       await controller.initialize();
-      try {
-        await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
-      } catch (_) {
-        // Orientation lock is optional on devices that do not support it.
-      }
-      await controller.startImageStream(_onCameraFrame);
       if (!mounted) {
-        await controller.dispose();
+        await _safeDisposeController(controller);
         return;
       }
+
+      // Mount CameraPreview first so CameraX's Flutter surface producer attaches
+      // cleanly before image analysis starts streaming.
       setState(() {
         _cameraController = controller;
         _cards = const [];
         _isInitializing = false;
         _errorMessage = null;
       });
-    } on CameraException catch (error) {
-      await controller.dispose();
+
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || _cameraController != controller) {
+        return;
+      }
+
+      await controller.startImageStream(_onCameraFrame);
+    } catch (error, stack) {
+      debugPrint('Start camera error: $error\n$stack');
+      if (_cameraController == controller) {
+        _cameraController = null;
+      }
+      await _safeDisposeController(controller);
       if (!mounted) return;
       setState(() {
-        _errorMessage =
-            'Camera error (${error.code}): ${error.description ?? "Check camera permission."}';
+        _errorMessage = _compactErrorMessage(error);
         _isInitializing = false;
       });
     }
@@ -185,7 +262,7 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen>
       );
       stopwatch.stop();
 
-      if (!mounted) return;
+      if (!mounted || _cameraController == null) return;
       _announcer.observe(recognized);
 
       setState(() {
@@ -201,15 +278,20 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen>
     }
   }
 
-  Future<void> _switchCamera() async {
-    if (_cameras.length < 2 || _isInitializing) return;
-    setState(() {
-      _isInitializing = true;
-      _cards = const [];
+  Future<void> _switchCamera() {
+    if (_cameras.length < 2 || _isInitializing) {
+      return Future<void>.value();
+    }
+    return _enqueueCameraOp(() async {
+      if (!mounted || _cameras.length < 2) return;
+      setState(() {
+        _isInitializing = true;
+        _cards = const [];
+      });
+      _announcer.reset();
+      _selectedCameraIndex = (_selectedCameraIndex + 1) % _cameras.length;
+      await _startCameraInternal(_cameras[_selectedCameraIndex]);
     });
-    _announcer.reset();
-    _selectedCameraIndex = (_selectedCameraIndex + 1) % _cameras.length;
-    await _startCamera(_cameras[_selectedCameraIndex]);
   }
 
   void _toggleMute() {
@@ -230,15 +312,31 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = _cameraController;
-    if (state == AppLifecycleState.inactive) {
-      _cameraController = null;
-      if (controller != null) {
-        unawaited(controller.dispose());
+    // Only suspend on full background (`paused`), NOT `inactive` (which fires
+    // when Android displays the runtime Camera Permission dialog).
+    if (state == AppLifecycleState.paused) {
+      if (_cameraController != null) {
+        _suspendedForBackground = true;
+        unawaited(
+          _enqueueCameraOp(() async {
+            final active = _cameraController;
+            _cameraController = null;
+            await _safeDisposeController(active);
+          }),
+        );
       }
     } else if (state == AppLifecycleState.resumed) {
-      if (_cameras.isNotEmpty && _cameraController == null) {
-        unawaited(_startCamera(_cameras[_selectedCameraIndex]));
+      if (_suspendedForBackground && _cameras.isNotEmpty) {
+        _suspendedForBackground = false;
+        unawaited(
+          _enqueueCameraOp(() async {
+            if (!mounted) return;
+            setState(() {
+              _isInitializing = true;
+            });
+            await _startCameraInternal(_cameras[_selectedCameraIndex]);
+          }),
+        );
       }
     }
   }
@@ -246,7 +344,9 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    unawaited(_cameraController?.dispose());
+    final controller = _cameraController;
+    _cameraController = null;
+    unawaited(_safeDisposeController(controller));
     unawaited(_detector?.dispose());
     unawaited(_speaker.dispose());
     super.dispose();
@@ -276,30 +376,34 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen>
 
   Widget _buildPreviewArea() {
     if (_errorMessage != null) {
-      return Center(
+      return SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.videocam_off_outlined,
-                color: Colors.white70,
-                size: 56,
+          padding: const EdgeInsets.fromLTRB(28, 88, 28, 148),
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.videocam_off_outlined,
+                    color: Colors.white70,
+                    size: 52,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white, fontSize: 15),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: _bootstrap,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry Camera'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-              ),
-              const SizedBox(height: 20),
-              FilledButton.icon(
-                onPressed: _bootstrap,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry Camera'),
-              ),
-            ],
+            ),
           ),
         ),
       );
@@ -532,8 +636,8 @@ class CardOverlayPainter extends CustomPainter {
         textDirection: TextDirection.ltr,
       )..layout();
 
-      final pillPaddingH = 8.0;
-      final pillPaddingV = 4.0;
+      const pillPaddingH = 8.0;
+      const pillPaddingV = 4.0;
       final pillWidth = textPainter.width + pillPaddingH * 2;
       final pillHeight = textPainter.height + pillPaddingV * 2;
       final pillLeft = rect.left.clamp(
