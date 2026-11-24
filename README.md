@@ -22,6 +22,12 @@ your own webcam:
 uv run innersight capture
 ```
 
+To add a second dataset:
+
+```
+ uv run innersight capture --index 1 --dataset datasets/phone-cards
+```
+
 The tool walks through all 57 card designs, the back of a card and one step without a card. The
 last three designs, wild shuffle, wild joker and wild customizable, are only in some decks. For each step it shows a
 card-shaped outline at six different places in the picture:
