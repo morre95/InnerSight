@@ -22,8 +22,8 @@ your own webcam:
 uv run innersight capture
 ```
 
-The tool walks through all 56 card designs, the back of a card and one step without a card. The
-last two designs, wild shuffle and wild joker, are only in some decks. For each step it shows a
+The tool walks through all 57 card designs, the back of a card and one step without a card. The
+last three designs, wild shuffle, wild joker and wild customizable, are only in some decks. For each step it shows a
 card-shaped outline at six different places in the picture:
 
 1. Hold the card so it fills the outline, with your fingers covering as little of it as possible.

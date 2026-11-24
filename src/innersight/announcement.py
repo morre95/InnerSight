@@ -28,6 +28,7 @@ SPOKEN_RANKS = {
     "back": "card back",
     "shuffle": "shuffle",
     "joker": "joker",
+    "customizable": "customizable",
 }
 
 

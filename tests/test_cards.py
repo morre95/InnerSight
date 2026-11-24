@@ -3,8 +3,8 @@ import pytest
 from innersight.cards import CARD_BACK, DECK, RANKS, CardColor, CardFace
 
 
-def test_deck_holds_56_distinct_faces() -> None:
-    assert len(DECK) == len(set(DECK)) == 56
+def test_deck_holds_57_distinct_faces() -> None:
+    assert len(DECK) == len(set(DECK)) == 57
 
 
 def test_every_face_in_the_deck_has_a_detector_class() -> None:
@@ -16,7 +16,7 @@ def test_back_is_not_a_design_in_the_deck() -> None:
 
 
 def test_ranks_keep_the_class_ids_of_labels_that_are_already_recorded() -> None:
-    assert (RANKS.index("0"), RANKS.index("+4"), RANKS.index("back")) == (0, 14, 15)
+    assert [RANKS.index(rank) for rank in ("0", "+4", "back", "joker")] == [0, 14, 15, 17]
 
 
 @pytest.mark.parametrize(
@@ -28,6 +28,7 @@ def test_ranks_keep_the_class_ids_of_labels_that_are_already_recorded() -> None:
         (CardFace(CardColor.WILD, "+4"), "wild +4"),
         (CardFace(CardColor.WILD, "shuffle"), "wild shuffle"),
         (CardFace(CardColor.WILD, "joker"), "wild joker"),
+        (CardFace(CardColor.WILD, "customizable"), "wild customizable"),
         (CARD_BACK, "back"),
     ],
 )

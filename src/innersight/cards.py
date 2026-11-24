@@ -18,7 +18,7 @@ SUIT_COLORS = (CardColor.RED, CardColor.YELLOW, CardColor.GREEN, CardColor.BLUE)
 COLORED_RANKS = ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "reverse", "+2")
 STANDARD_WILD_RANKS = ("wild", "+4")
 # Wild cards that only some decks have.
-EXTRA_WILD_RANKS = ("shuffle", "joker")
+EXTRA_WILD_RANKS = ("shuffle", "joker", "customizable")
 WILD_RANKS = STANDARD_WILD_RANKS + EXTRA_WILD_RANKS
 BACK_RANK = "back"
 
@@ -29,7 +29,7 @@ RANKS = (*COLORED_RANKS, *STANDARD_WILD_RANKS, BACK_RANK, *EXTRA_WILD_RANKS)
 
 @dataclass(frozen=True)
 class CardFace:
-    """What one side of a card shows: one of the 56 designs in a UNO deck, or the back."""
+    """What one side of a card shows: one of the 57 designs in a UNO deck, or the back."""
 
     color: CardColor
     rank: str
