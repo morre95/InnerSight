@@ -12,6 +12,7 @@ def make_card(color: CardColor, rank: str, confidence: float = 0.9) -> Card:
 
 RED_SEVEN = make_card(CardColor.RED, "7")
 BLUE_SKIP = make_card(CardColor.BLUE, "skip")
+UNREADABLE_SEVEN = make_card(CardColor.UNKNOWN, "7")
 
 
 def make_announcer() -> tuple[CardAnnouncer, list[str]]:
@@ -120,3 +121,32 @@ def test_announces_the_most_confident_card_when_several_are_in_view() -> None:
     show(announcer, [faint_card, clear_card], STABLE_FRAME_COUNT)
 
     assert spoken == ["yellow reverse"]
+
+
+def test_does_not_announce_a_card_whose_color_could_not_be_read() -> None:
+    announcer, spoken = make_announcer()
+
+    show(announcer, [UNREADABLE_SEVEN], STABLE_FRAME_COUNT * 3)
+
+    assert spoken == []
+
+
+def test_announces_a_card_once_its_color_is_read_after_frames_where_it_was_not() -> None:
+    announcer, spoken = make_announcer()
+    show(announcer, [UNREADABLE_SEVEN], STABLE_FRAME_COUNT)
+
+    for _ in range(STABLE_FRAME_COUNT):
+        show(announcer, [RED_SEVEN], 1)
+        show(announcer, [UNREADABLE_SEVEN], 1)
+
+    assert spoken == ["red seven"]
+
+
+def test_does_not_take_a_card_for_gone_while_its_color_cannot_be_read() -> None:
+    announcer, spoken = make_announcer()
+    show(announcer, [RED_SEVEN], STABLE_FRAME_COUNT)
+
+    show(announcer, [UNREADABLE_SEVEN], STABLE_FRAME_COUNT)
+    show(announcer, [RED_SEVEN], STABLE_FRAME_COUNT)
+
+    assert spoken == ["red seven"]

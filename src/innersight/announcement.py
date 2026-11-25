@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Sequence
 
-from innersight.cards import Card, CardFace
+from innersight.cards import Card, CardColor, CardFace
 
 # How many frames in a row a card must be in view, or gone, before the announcer reacts.
 # It keeps a flickering detection from being announced, and a brief dropout from being
@@ -52,8 +52,15 @@ class SettledCardWatcher:
         """Take in the cards recognized in one frame. With several, the surest one counts.
 
         Returns the card on the frame it settles in view, and None on every other frame.
+
+        A card whose color could not be read is not a card that exists, such as "unknown 5".
+        A frame that shows only such cards is left out, so the card is read again in the
+        next frame, and neither settles under a wrong name nor counts as taken away.
         """
-        card = max(cards, key=_confidence) if cards else None
+        readable_cards = [card for card in cards if card.color != CardColor.UNKNOWN]
+        if cards and not readable_cards:
+            return None
+        card = max(readable_cards, key=_confidence) if readable_cards else None
         face = card.face if card else None
         if face == self._candidate:
             self._candidate_frame_count += 1

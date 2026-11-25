@@ -27,7 +27,7 @@ CardColor classifyCardColor({
   Box? box,
 }) {
   if (imageWidth <= 0 || imageHeight <= 0) {
-    return CardColor.wild;
+    return CardColor.unknown;
   }
 
   final x1 = (box?.x1 ?? 0).clamp(0, imageWidth);
@@ -38,7 +38,7 @@ CardColor classifyCardColor({
   final cropWidth = x2 - x1;
   final cropHeight = y2 - y1;
   if (cropWidth <= 0 || cropHeight <= 0) {
-    return CardColor.wild;
+    return CardColor.unknown;
   }
 
   final marginY = (cropHeight * (1.0 - centerFraction) / 2.0).round();
@@ -59,7 +59,7 @@ CardColor classifyCardColor({
 
   final totalPixels = (centerX2 - centerX1) * (centerY2 - centerY1);
   if (totalPixels <= 0) {
-    return CardColor.wild;
+    return CardColor.unknown;
   }
 
   var coloredPixels = 0;
@@ -95,7 +95,7 @@ CardColor classifyCardColor({
   }
 
   if (coloredPixels < minColoredFraction * totalPixels) {
-    return CardColor.wild;
+    return CardColor.unknown;
   }
 
   final counts = <CardColor, int>{
@@ -115,7 +115,7 @@ CardColor classifyCardColor({
   }
 
   if (dominantCount < minDominantShare * coloredPixels) {
-    return CardColor.wild;
+    return CardColor.unknown;
   }
   return dominantColor;
 }

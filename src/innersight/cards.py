@@ -11,6 +11,8 @@ class CardColor(StrEnum):
     BLUE = "blue"
     WILD = "wild"
     BACK = "back"
+    # The color of a number or action card could not be read from the picture.
+    UNKNOWN = "unknown"
 
 
 SUIT_COLORS = (CardColor.RED, CardColor.YELLOW, CardColor.GREEN, CardColor.BLUE)

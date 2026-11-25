@@ -25,24 +25,27 @@ CENTER_FRACTION = 0.6
 # Below this share of colored pixels the card has no color of its own.
 MIN_COLORED_FRACTION = 0.05
 
-# A number or action card is one color. A wild card splits its colored pixels between four.
+# A number or action card is one color. Background or glare splits the colored pixels.
 MIN_DOMINANT_SHARE = 0.6
 
 
 def classify_card_color(card_bgr: np.ndarray) -> CardColor:
-    """Return the card's color, or WILD when no single color dominates the crop."""
+    """Return the color of a number or action card, or UNKNOWN when no single color dominates.
+
+    That happens when the card is too far away, in poor light, or in glare.
+    """
     hsv = cv2.cvtColor(_crop_center(card_bgr), cv2.COLOR_BGR2HSV)
     hue, saturation, value = hsv[..., 0], hsv[..., 1], hsv[..., 2]
     colored_hues = hue[(saturation >= MIN_SATURATION) & (value >= MIN_VALUE)]
     if colored_hues.size < MIN_COLORED_FRACTION * hue.size:
-        return CardColor.WILD
+        return CardColor.UNKNOWN
 
     pixel_counts = {
         color: _count_hues_in_ranges(colored_hues, ranges) for color, ranges in HUE_RANGES.items()
     }
     dominant_color = max(pixel_counts, key=pixel_counts.__getitem__)
     if pixel_counts[dominant_color] < MIN_DOMINANT_SHARE * colored_hues.size:
-        return CardColor.WILD
+        return CardColor.UNKNOWN
     return dominant_color
 
 

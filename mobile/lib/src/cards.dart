@@ -7,7 +7,10 @@ enum CardColor {
   green('green'),
   blue('blue'),
   wild('wild'),
-  back('back');
+  back('back'),
+
+  /// The color of a number or action card could not be read from the picture.
+  unknown('unknown');
 
   const CardColor(this.value);
   final String value;

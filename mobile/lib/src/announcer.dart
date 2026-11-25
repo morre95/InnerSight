@@ -25,13 +25,24 @@ class SettledCardWatcher {
   /// Takes in the cards of one frame. With several, the surest one counts.
   ///
   /// Returns the card on the frame it settles in view, and null otherwise.
+  ///
+  /// A card whose color could not be read is not a card that exists, such as
+  /// "unknown 5". A frame that shows only such cards is left out, so the card
+  /// is read again in the next frame, and neither settles under a wrong name
+  /// nor counts as taken away.
   RecognizedCard? observe(List<RecognizedCard> cards) {
     RecognizedCard? best;
     for (final card in cards) {
+      if (card.color == CardColor.unknown) {
+        continue;
+      }
       if (best == null ||
           card.detection.confidence > best.detection.confidence) {
         best = card;
       }
+    }
+    if (cards.isNotEmpty && best == null) {
+      return null;
     }
     final face = best?.face;
 

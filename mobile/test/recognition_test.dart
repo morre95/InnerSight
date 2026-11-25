@@ -133,7 +133,7 @@ void main() {
       );
     });
 
-    test('falls back to wild on low-saturation or 4-way split crops', () {
+    test('reports unknown on low-saturation or 4-way split crops', () {
       final washedOut = _solidRgb(40, 40, 235, 235, 235);
       expect(
         classifyCardColor(
@@ -141,7 +141,7 @@ void main() {
           imageWidth: 40,
           imageHeight: 40,
         ),
-        CardColor.wild,
+        CardColor.unknown,
       );
 
       final fourWay = Uint8List(40 * 40 * 3);
@@ -162,7 +162,7 @@ void main() {
       }
       expect(
         classifyCardColor(rgbBytes: fourWay, imageWidth: 40, imageHeight: 40),
-        CardColor.wild,
+        CardColor.unknown,
       );
     });
 
@@ -187,6 +187,7 @@ void main() {
   group('CardAnnouncer', () {
     final redSeven = _makeCard(CardColor.red, '7');
     final blueSkip = _makeCard(CardColor.blue, 'skip');
+    final unreadableSeven = _makeCard(CardColor.unknown, '7');
 
     void show(
       CardAnnouncer announcer,
@@ -224,6 +225,39 @@ void main() {
       show(announcer, const [], stableFrameCount);
       show(announcer, [redSeven], stableFrameCount);
       expect(spoken, ['red seven', 'red seven']);
+    });
+
+    test('does not announce a card whose color could not be read', () {
+      final spoken = <String>[];
+      final announcer = CardAnnouncer(say: spoken.add);
+
+      show(announcer, [unreadableSeven], stableFrameCount * 3);
+
+      expect(spoken, isEmpty);
+    });
+
+    test('announces a card once its color is read after unreadable frames', () {
+      final spoken = <String>[];
+      final announcer = CardAnnouncer(say: spoken.add);
+      show(announcer, [unreadableSeven], stableFrameCount);
+
+      for (var i = 0; i < stableFrameCount; i++) {
+        show(announcer, [redSeven], 1);
+        show(announcer, [unreadableSeven], 1);
+      }
+
+      expect(spoken, ['red seven']);
+    });
+
+    test('does not take a card for gone while its color cannot be read', () {
+      final spoken = <String>[];
+      final announcer = CardAnnouncer(say: spoken.add);
+      show(announcer, [redSeven], stableFrameCount);
+
+      show(announcer, [unreadableSeven], stableFrameCount);
+      show(announcer, [redSeven], stableFrameCount);
+
+      expect(spoken, ['red seven']);
     });
 
     test('announces replacement card and picks highest confidence card', () {

@@ -92,9 +92,9 @@ def test_ignores_background_at_the_edges_of_the_crop() -> None:
     assert classify_card_color(crop) is CardColor.GREEN
 
 
-def test_returns_wild_for_black_card_with_four_color_oval() -> None:
-    assert classify_card_color(make_wild_card()) is CardColor.WILD
+def test_returns_unknown_for_a_crop_split_between_four_colors() -> None:
+    assert classify_card_color(make_wild_card()) is CardColor.UNKNOWN
 
 
-def test_returns_wild_for_card_without_any_color() -> None:
-    assert classify_card_color(make_blank_card(BLACK)) is CardColor.WILD
+def test_returns_unknown_for_card_without_any_color() -> None:
+    assert classify_card_color(make_blank_card(BLACK)) is CardColor.UNKNOWN

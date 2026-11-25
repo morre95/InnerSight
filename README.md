@@ -149,7 +149,9 @@ the same pictures of the cards.
 
 The hue ranges and thresholds in [color.py](src/innersight/color.py) are starting values. Warm
 indoor light pushes yellow toward red and green toward yellow, so adjust `HUE_RANGES` to your
-own deck, camera and lighting. A card with no single dominant color is reported as `wild`.
+own deck, camera and lighting. A number or action card with no single dominant color is
+outlined in gray as `unknown` and is not announced until its color can be read, so hold it
+closer or in better light.
 
 ## Development
 

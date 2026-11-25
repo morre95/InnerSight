@@ -66,10 +66,11 @@ uv run --group export python scripts/export_mobile_model.py --weights weights/ow
    (`RANKS` in `cards.py`), never colors.
 2. **Color** is read separately by HSV hue analysis of the middle of the detection box
    (`color.py` / `color_classifier.dart`). Back and wild ranks skip this and get a fixed color
-   (`recognition.py`).
+   (`recognition.py`). When no single color dominates, the color is `UNKNOWN`.
 3. `SettledCardWatcher` (`announcement.py` / `announcer.dart`) reports a card once it has been the
    surest card for `STABLE_FRAME_COUNT` frames in a row, and again only after it changes or
-   leaves. `CardAnnouncer` speaks what the watcher reports.
+   leaves. `CardAnnouncer` speaks what the watcher reports. The watcher leaves out frames
+   where the color is `UNKNOWN`, so a card such as "unknown 5" is never announced or guessed.
 
 Consequences worth knowing:
 

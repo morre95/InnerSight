@@ -11,6 +11,7 @@ Color outlineColorFor(CardColor color) {
     CardColor.blue => const Color(0xFF2979FF),
     CardColor.wild => const Color(0xFFFF00FF),
     CardColor.back => const Color(0xFFFFFFFF),
+    CardColor.unknown => const Color(0xFF808080),
   };
 }
 
