@@ -1,5 +1,6 @@
 """Live camera input and the preview window that shows it."""
 
+import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 
@@ -7,6 +8,11 @@ import cv2
 import numpy as np
 
 from innersight.errors import CameraError
+
+# The Qt that comes with opencv-python on Linux has the X11 platform plugin only. A Wayland
+# desktop asks Qt for "wayland" first, which makes Qt print a warning before it falls back to
+# X11. Qt reads this when the first window opens, so it is set before any window is shown.
+os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 WINDOW_TITLE = "InnerSight"
 QUIT_KEY = ord("q")
