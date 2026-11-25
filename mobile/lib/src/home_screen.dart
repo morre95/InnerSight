@@ -3,15 +3,33 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'camera_screen.dart';
+import 'cards.dart';
 import 'detector.dart';
 import 'game_screen.dart';
+import 'recognition.dart';
 
 const int defaultCardCount = 10;
 const int maxCardCount = 50;
 
+const double defaultMinConfidence = 0.50;
+const double lowestMinConfidence = 0.20;
+const double highestMinConfidence = 0.90;
+
+/// The detector that finds the cards, and the ranks and wording of its model.
+typedef CardModel = ({CardDetector detector, ModelConfig config});
+
+/// Loads the model that is packed with the app.
+Future<CardModel> loadPackedCardModel() async {
+  final detector = await OnnxCardDetector.fromAssets();
+  return (detector: detector, config: detector.config);
+}
+
 /// Where a session is set up: choose how many cards to guess, then start.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.loadCardModel = loadPackedCardModel});
+
+  /// Loads the model once, when the app starts.
+  final Future<CardModel> Function() loadCardModel;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -20,28 +38,31 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _cardCount = defaultCardCount;
 
+  double _minConfidence = defaultMinConfidence;
+  bool _showsAdvanced = false;
+
   /// Loaded once and kept for as long as the app runs, as loading is slow.
-  OnnxCardDetector? _detector;
+  CardModel? _cardModel;
   String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_loadDetector());
+    unawaited(_loadCardModel());
   }
 
-  Future<void> _loadDetector() async {
+  Future<void> _loadCardModel() async {
     setState(() {
       _loadError = null;
     });
     try {
-      final detector = await OnnxCardDetector.fromAssets();
+      final cardModel = await widget.loadCardModel();
       if (!mounted) return;
       setState(() {
-        _detector = detector;
+        _cardModel = cardModel;
       });
     } catch (error, stack) {
-      debugPrint('Detector load error: $error\n$stack');
+      debugPrint('Card model load error: $error\n$stack');
       if (!mounted) return;
       setState(() {
         _loadError = 'The card model could not be loaded.';
@@ -103,33 +124,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// The buttons that open a screen, or what stands in for them while the
-  /// detector is loading or could not be loaded.
+  /// model is loading or could not be loaded.
   List<Widget> _buildStartControls(TextTheme textTheme) {
-    final detector = _detector;
-    if (detector != null) {
+    final cardModel = _cardModel;
+    if (cardModel != null) {
       return [
         FilledButton.icon(
           onPressed: () => _open(
             GameScreen(
               cardCount: _cardCount,
-              detector: detector,
-              config: detector.config,
+              detector: cardModel.detector,
+              config: cardModel.config,
+              minConfidence: _minConfidence,
             ),
           ),
           icon: const Icon(Icons.play_arrow),
           label: const Text('Start game'),
         ),
         const SizedBox(height: 12),
-        FilledButton.tonalIcon(
-          onPressed: () => _open(
-            CameraRecognitionScreen(
-              detector: detector,
-              config: detector.config,
-            ),
-          ),
-          icon: const Icon(Icons.volume_up),
-          label: const Text('Just read cards aloud'),
+        TextButton.icon(
+          onPressed: () => setState(() {
+            _showsAdvanced = !_showsAdvanced;
+          }),
+          icon: Icon(_showsAdvanced ? Icons.expand_less : Icons.expand_more),
+          label: const Text('Advanced'),
         ),
+        if (_showsAdvanced) ..._buildAdvancedControls(textTheme, cardModel),
       ];
     }
     if (_loadError != null) {
@@ -141,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 12),
         FilledButton.icon(
-          onPressed: _loadDetector,
+          onPressed: _loadCardModel,
           icon: const Icon(Icons.refresh),
           label: const Text('Try again'),
         ),
@@ -154,6 +174,41 @@ class _HomeScreenState extends State<HomeScreen> {
         'Loading the card model...',
         textAlign: TextAlign.center,
         style: textTheme.bodyMedium,
+      ),
+    ];
+  }
+
+  /// What most players never need: how sure the model must be of a card, and
+  /// reading cards aloud without a game.
+  List<Widget> _buildAdvancedControls(
+    TextTheme textTheme,
+    CardModel cardModel,
+  ) {
+    return [
+      Text(
+        'Read a card when ${(_minConfidence * 100).round()}% sure',
+        textAlign: TextAlign.center,
+        style: textTheme.bodyMedium,
+      ),
+      Slider(
+        value: _minConfidence,
+        min: lowestMinConfidence,
+        max: highestMinConfidence,
+        divisions: 14,
+        onChanged: (value) => setState(() {
+          _minConfidence = value;
+        }),
+      ),
+      FilledButton.tonalIcon(
+        onPressed: () => _open(
+          CameraRecognitionScreen(
+            detector: cardModel.detector,
+            config: cardModel.config,
+            minConfidence: _minConfidence,
+          ),
+        ),
+        icon: const Icon(Icons.volume_up),
+        label: const Text('Just read cards aloud'),
       ),
     ];
   }

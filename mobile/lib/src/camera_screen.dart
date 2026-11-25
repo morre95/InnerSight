@@ -17,10 +17,14 @@ class CameraRecognitionScreen extends StatefulWidget {
     super.key,
     required this.detector,
     required this.config,
+    required this.minConfidence,
   });
 
   final CardDetector detector;
   final ModelConfig config;
+
+  /// Detections below this confidence are ignored.
+  final double minConfidence;
 
   @override
   State<CameraRecognitionScreen> createState() =>
@@ -32,7 +36,6 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen> {
   final TtsSpeaker _speaker = TtsSpeaker();
   late final CardAnnouncer _announcer;
 
-  double _minConfidence = defaultMinConfidence;
   int? _latencyMs;
   String? _lastSpokenPhrase;
   CardColor? _lastSpokenColor;
@@ -79,12 +82,6 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen> {
     }
   }
 
-  void _onConfidenceChanged(double value) {
-    setState(() {
-      _minConfidence = value;
-    });
-  }
-
   @override
   void dispose() {
     unawaited(_speaker.dispose());
@@ -102,7 +99,7 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen> {
             key: _cameraView,
             detector: widget.detector,
             config: widget.config,
-            minConfidence: _minConfidence,
+            minConfidence: widget.minConfidence,
             onCards: _onCards,
           ),
           SafeArea(
@@ -174,7 +171,6 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen> {
   }
 
   Widget _buildBottomControls() {
-    final confPercent = (_minConfidence * 100).round();
     final hasSeveralCameras =
         _cameraView.currentState?.hasSeveralCameras ?? false;
     return Padding(
@@ -186,48 +182,18 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.white12),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.tune, color: Colors.white70, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  'Conf $confPercent%',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Expanded(
-                  child: Slider(
-                    value: _minConfidence,
-                    min: 0.20,
-                    max: 0.90,
-                    divisions: 14,
-                    onChanged: _onConfidenceChanged,
-                  ),
-                ),
-              ],
+            FilledButton.tonalIcon(
+              onPressed: _toggleMute,
+              icon: Icon(_speaker.isMuted ? Icons.volume_off : Icons.volume_up),
+              label: Text(_speaker.isMuted ? 'Muted' : 'Voice On'),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                FilledButton.tonalIcon(
-                  onPressed: _toggleMute,
-                  icon: Icon(
-                    _speaker.isMuted ? Icons.volume_off : Icons.volume_up,
-                  ),
-                  label: Text(_speaker.isMuted ? 'Muted' : 'Voice On'),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: hasSeveralCameras ? _switchCamera : null,
-                  icon: const Icon(Icons.cameraswitch),
-                  label: const Text('Switch Cam'),
-                ),
-              ],
+            FilledButton.tonalIcon(
+              onPressed: hasSeveralCameras ? _switchCamera : null,
+              icon: const Icon(Icons.cameraswitch),
+              label: const Text('Switch Cam'),
             ),
           ],
         ),

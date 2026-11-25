@@ -150,6 +150,8 @@ only.
 `HomeScreen` loads the detector once when the app starts, keeps it for as long as the app runs,
 and passes it with its config to the screens. So a screen has the spoken ranks from the start.
 The minimum confidence is passed with every `detect` call, never stored in the shared detector.
+It is set on the home screen, under Advanced, and applies to both screens. `HomeScreen` takes
+the model loader as a parameter, so its tests need no ONNX runtime.
 
 `CardCameraView` (`card_camera_view.dart`) owns the camera and the preview with card outlines,
 and reports each recognized frame through `onCards`. It is given the detector and does not

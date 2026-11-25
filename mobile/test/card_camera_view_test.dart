@@ -131,6 +131,7 @@ void main() {
           key: cameraView,
           detector: _NeverCalledDetector(),
           config: ModelConfig.defaults(),
+          minConfidence: 0.5,
           onCards: (frame, cards, latencyMs) {},
         ),
       ),

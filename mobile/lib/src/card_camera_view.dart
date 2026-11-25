@@ -9,8 +9,6 @@ import 'cards.dart';
 import 'frame_prep.dart';
 import 'recognition.dart';
 
-const double defaultMinConfidence = 0.50;
-
 /// Live camera preview that recognizes the cards in view and outlines them.
 ///
 /// Owns the camera. Reports every recognized frame through [onCards], so the
@@ -21,7 +19,7 @@ class CardCameraView extends StatefulWidget {
     required this.detector,
     required this.config,
     required this.onCards,
-    this.minConfidence = defaultMinConfidence,
+    required this.minConfidence,
   });
 
   /// Finds the cards in every frame. It is not disposed by this view.

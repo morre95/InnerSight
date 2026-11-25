@@ -35,11 +35,15 @@ class GameScreen extends StatefulWidget {
     required this.cardCount,
     required this.detector,
     required this.config,
+    required this.minConfidence,
   });
 
   final int cardCount;
   final CardDetector detector;
   final ModelConfig config;
+
+  /// Detections below this confidence are ignored.
+  final double minConfidence;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -152,6 +156,7 @@ class _GameScreenState extends State<GameScreen> {
                 key: _cameraView,
                 detector: widget.detector,
                 config: widget.config,
+                minConfidence: widget.minConfidence,
                 onCards: _onCards,
               ),
               SafeArea(
