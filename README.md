@@ -134,13 +134,16 @@ seeing the screen:
    | Down  | miss        |
 
 3. Press `SPACE` to lock in the answer, then take the card away and hold up the next one.
+   The voice says "Next card", or "Last card" when one card is left.
 
 After the last card the voice says the result and a result board shows the count of every
-answer and every card. `Q` ends the session early. Every round is added to `logs/guesses.csv`
+answer and every card. Each card is shown with a picture cut from the camera frame it was read
+in, so you can check that the detector read it correctly. `Q` ends the session early. Every round is added to `logs/guesses.csv`
 with the card the detector read and how sure it was; `--log` chooses another file.
 
 In the phone app, choose the number of cards and press Start game. Swipe up, left, right or
-down for the same answers as the arrow keys, and double-tap to lock in.
+down for the same answers as the arrow keys, and double-tap to lock in. Its result board shows
+the same pictures of the cards.
 
 ## Calibrate the colors
 

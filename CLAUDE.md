@@ -102,6 +102,10 @@ The input layers are thin: `game.py` maps arrow keys and `SPACE` to the session 
 locked round to a CSV through `GuessLog`; `game_screen.dart` maps swipes (`swipeOutcome`) and a
 double-tap. The phone has no file log; its result board shows the same data.
 
+The session holds no images. `observe` returns the card that starts a round; the input layer
+crops that card from the frame and keeps one picture for every locked round, which the result
+board shows beside the round. The pictures are kept in memory only.
+
 ### Python conventions that are easy to miss
 
 - Interactive loops take `frames` (an iterator) and `show` (a callable that displays a frame and

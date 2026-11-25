@@ -28,8 +28,9 @@ def _read_color(frame_bgr: np.ndarray, detection: Detection) -> CardColor:
         return CardColor.BACK
     if detection.rank in WILD_RANKS:
         return CardColor.WILD
-    return classify_card_color(_crop(frame_bgr, detection.box))
+    return classify_card_color(crop_box(frame_bgr, detection.box))
 
 
-def _crop(frame_bgr: np.ndarray, box: Box) -> np.ndarray:
+def crop_box(frame_bgr: np.ndarray, box: Box) -> np.ndarray:
+    """The part of the frame inside the box, as a view of the frame."""
     return frame_bgr[box.y1 : box.y2, box.x1 : box.x2]

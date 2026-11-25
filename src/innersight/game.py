@@ -9,7 +9,7 @@ from innersight.banner import add_banner
 from innersight.guess_log import GuessLog
 from innersight.guessing import GuessingSession, GuessOutcome
 from innersight.live_view import QUIT_KEY
-from innersight.recognition import CardDetector, recognize_cards
+from innersight.recognition import CardDetector, crop_box, recognize_cards
 
 LOCK_IN_KEY = ord(" ")
 
@@ -35,25 +35,34 @@ def play_guessing_game(
     detector: CardDetector,
     session: GuessingSession,
     guess_log: GuessLog,
-) -> None:
+) -> list[np.ndarray]:
     """Play until the session is finished or the player quits; log every round as it ends.
 
     `show` displays a preview frame and returns the full code of the key pressed in it.
+    Returns a picture of the card of every locked round, cut from the frame it was read in,
+    so the player can check afterwards what the model read.
     """
+    pictures: list[np.ndarray] = []
+    picture = None
     for frame in frames:
         cards = recognize_cards(frame, detector)
-        session.observe(cards)
+        round_card = session.observe(cards)
+        if round_card is not None:
+            # A copy, as the crop alone would keep the whole frame in memory.
+            picture = crop_box(frame, round_card.detection.box).copy()
         key = show(add_banner(draw_cards(frame, cards), _describe_round(session)))
         if key == QUIT_KEY:
-            return
+            break
         if key in KEY_OUTCOMES:
             session.give_answer(KEY_OUTCOMES[key])
         elif key == LOCK_IN_KEY:
             locked_round = session.lock_in()
             if locked_round is not None:
                 guess_log.append(len(session.rounds), locked_round)
+                pictures.append(picture)
         if session.is_finished:
-            return
+            break
+    return pictures
 
 
 def _describe_round(session: GuessingSession) -> tuple[str, ...]:

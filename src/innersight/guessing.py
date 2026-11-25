@@ -10,6 +10,7 @@ from innersight.cards import CARD_BACK, Card, CardFace
 
 FIRST_CARD_PHRASE = "Hold up your first card"
 NEXT_CARD_PHRASE = "Locked in. Next card"
+LAST_CARD_PHRASE = "Locked in. Last card"
 NO_CARD_PHRASE = "Hold up a card first"
 NO_ANSWER_PHRASE = "Answer first"
 
@@ -67,18 +68,21 @@ class GuessingSession:
     def is_finished(self) -> bool:
         return len(self._rounds) == self.card_count
 
-    def observe(self, cards: Sequence[Card]) -> None:
-        """Take in the cards recognized in one frame.
+    def observe(self, cards: Sequence[Card]) -> Card | None:
+        """Take in the cards recognized in one frame; return the card that starts a round.
 
         A card that settles in view while no round is being played starts the next round.
         The back of a card is read aloud but starts no round, as there is nothing to guess.
+        On every frame that starts no round, None is returned.
         """
         settled_card = self._watcher.observe(cards)
         if settled_card is None or self._card is not None or self.is_finished:
-            return
+            return None
         self._say(spoken_name(settled_card.face))
-        if settled_card.face != CARD_BACK:
-            self._card = settled_card
+        if settled_card.face == CARD_BACK:
+            return None
+        self._card = settled_card
+        return settled_card
 
     def give_answer(self, outcome: GuessOutcome) -> None:
         """Say the outcome, and make it the answer of the round being played.
@@ -101,8 +105,14 @@ class GuessingSession:
         self._rounds.append(locked_round)
         self._card = None
         self._answer = None
-        self._say(spoken_summary(self._rounds) if self.is_finished else NEXT_CARD_PHRASE)
+        self._say(self._phrase_after_locking_in())
         return locked_round
+
+    def _phrase_after_locking_in(self) -> str:
+        cards_left = self.card_count - len(self._rounds)
+        if cards_left == 0:
+            return spoken_summary(self._rounds)
+        return LAST_CARD_PHRASE if cards_left == 1 else NEXT_CARD_PHRASE
 
 
 def count_outcomes(rounds: Sequence[GuessRound]) -> dict[GuessOutcome, int]:

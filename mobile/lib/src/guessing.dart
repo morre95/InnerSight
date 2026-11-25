@@ -3,6 +3,7 @@ import 'cards.dart';
 
 const String firstCardPhrase = 'Hold up your first card';
 const String nextCardPhrase = 'Locked in. Next card';
+const String lastCardPhrase = 'Locked in. Last card';
 const String noCardPhrase = 'Hold up a card first';
 const String noAnswerPhrase = 'Answer first';
 
@@ -66,19 +67,23 @@ class GuessingSession {
 
   bool get isFinished => _rounds.length == cardCount;
 
-  /// Takes in the cards recognized in one frame.
+  /// Takes in the cards recognized in one frame; returns the card that starts
+  /// a round.
   ///
   /// A card that settles in view while no round is being played starts the
-  /// next round. The back of a card is read aloud but starts no round.
-  void observe(List<RecognizedCard> cards) {
+  /// next round. The back of a card is read aloud but starts no round. On
+  /// every frame that starts no round, null is returned.
+  RecognizedCard? observe(List<RecognizedCard> cards) {
     final settledCard = _watcher.observe(cards);
     if (settledCard == null || _card != null || isFinished) {
-      return;
+      return null;
     }
     say(spokenName(settledCard.face, spokenRanks: spokenRanks));
-    if (settledCard.color != CardColor.back) {
-      _card = settledCard;
+    if (settledCard.color == CardColor.back) {
+      return null;
     }
+    _card = settledCard;
+    return settledCard;
   }
 
   /// Says the outcome, and makes it the answer of the round being played.
@@ -113,8 +118,16 @@ class GuessingSession {
     _rounds.add(lockedRound);
     _card = null;
     _answer = null;
-    say(isFinished ? spokenSummary(_rounds) : nextCardPhrase);
+    say(_phraseAfterLockingIn());
     return lockedRound;
+  }
+
+  String _phraseAfterLockingIn() {
+    final cardsLeft = cardCount - _rounds.length;
+    if (cardsLeft == 0) {
+      return spokenSummary(_rounds);
+    }
+    return cardsLeft == 1 ? lastCardPhrase : nextCardPhrase;
   }
 }
 

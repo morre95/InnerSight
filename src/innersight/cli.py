@@ -211,12 +211,12 @@ def _play_game(detector: CardDetector, camera_index: int, card_count: int, log_f
     session = GuessingSession(card_count, PocketTtsVoice().say)
     guess_log = GuessLog(log_file, datetime.now())
     with open_camera(camera_index) as frames:
-        play_guessing_game(frames, show_frame_for_key_code, detector, session, guess_log)
+        pictures = play_guessing_game(frames, show_frame_for_key_code, detector, session, guess_log)
     if not session.rounds:
         return
     print(f"The rounds are logged in {log_file}")
     try:
-        show_frame_until_key(draw_result_board(session.rounds))
+        show_frame_until_key(draw_result_board(session.rounds, pictures))
     finally:
         close_window()
 
