@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 
 import 'card_camera_view.dart';
 import 'card_overlay.dart';
+import 'card_picture.dart';
 import 'cards.dart';
+import 'frame_prep.dart';
 import 'guessing.dart';
 import 'overlay_panel.dart';
 import 'result_board.dart';
@@ -44,6 +46,13 @@ class _GameScreenState extends State<GameScreen> {
   Offset _swipe = Offset.zero;
   bool _hasEndedEarly = false;
 
+  /// The card of the round being played, cut from the frame it was read in.
+  CardPicture? _picture;
+
+  /// The card of every locked round, so the player can check afterwards what
+  /// the model read.
+  final List<CardPicture> _pictures = [];
+
   void _say(String phrase) => unawaited(_speaker.say(phrase));
 
   void _onModelLoaded(ModelConfig config) {
@@ -54,9 +63,16 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  void _onCards(List<RecognizedCard> cards, int latencyMs) {
+  void _onCards(
+    PreparedFrame frame,
+    List<RecognizedCard> cards,
+    int latencyMs,
+  ) {
     setState(() {
-      _session?.observe(cards);
+      final roundCard = _session?.observe(cards);
+      if (roundCard != null) {
+        _picture = cropCardPicture(frame, roundCard.detection.box);
+      }
     });
   }
 
@@ -70,7 +86,11 @@ class _GameScreenState extends State<GameScreen> {
 
   void _lockIn() {
     setState(() {
-      _session?.lockIn();
+      final lockedRound = _session?.lockIn();
+      if (lockedRound != null) {
+        // A round is only locked after its card was read, so it has a picture.
+        _pictures.add(_picture!);
+      }
     });
   }
 
@@ -99,6 +119,7 @@ class _GameScreenState extends State<GameScreen> {
       return Scaffold(
         body: ResultBoard(
           rounds: session.rounds,
+          pictures: _pictures,
           onDone: () => Navigator.of(context).pop(),
         ),
       );

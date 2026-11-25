@@ -23,6 +23,7 @@ NO_KEY = -1
 UP, LEFT, RIGHT, DOWN = UP_KEYS[0], LEFT_KEYS[0], RIGHT_KEYS[0], DOWN_KEYS[0]
 # A wild card, so that its color is not read from the black camera frame.
 WILD_CARD = Detection(rank="wild", confidence=0.9, box=Box(0, 0, 10, 10))
+WHITE = 255
 CARD_SETTLES = (NO_KEY,) * STABLE_FRAME_COUNT
 
 
@@ -102,6 +103,34 @@ def test_logs_every_round_as_it_is_locked_in(tmp_path: Path) -> None:
 
     log_lines = (tmp_path / "guesses.csv").read_text().splitlines()
     assert log_lines[1:] == ["2026-11-25T00:00:00,1,wild,0.900,both right"]
+
+
+def test_returns_a_picture_of_every_locked_card_cut_from_its_frame(tmp_path: Path) -> None:
+    frame = BLACK_FRAME.copy()
+    box = WILD_CARD.box
+    frame[box.y1 : box.y2, box.x1 : box.x2] = WHITE
+    session = GuessingSession(1, say=lambda phrase: None)
+    guess_log = GuessLog(tmp_path / "guesses.csv", datetime(2026, 11, 25))
+    window = ScriptedWindow(*CARD_SETTLES, UP, LOCK_IN_KEY)
+
+    pictures = play_guessing_game(
+        itertools.repeat(frame), window, CardInEveryFrame(), session, guess_log
+    )
+
+    assert [picture.shape for picture in pictures] == [(10, 10, 3)]
+    assert (pictures[0] == WHITE).all()
+
+
+def test_returns_no_picture_of_a_card_that_was_not_locked_in(tmp_path: Path) -> None:
+    session = GuessingSession(2, say=lambda phrase: None)
+    guess_log = GuessLog(tmp_path / "guesses.csv", datetime(2026, 11, 25))
+    window = ScriptedWindow(*CARD_SETTLES, UP, QUIT_KEY)
+
+    pictures = play_guessing_game(
+        itertools.repeat(BLACK_FRAME), window, CardInEveryFrame(), session, guess_log
+    )
+
+    assert pictures == []
 
 
 def test_shows_the_round_and_the_answer_above_the_preview(tmp_path: Path) -> None:

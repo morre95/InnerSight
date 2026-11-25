@@ -25,7 +25,12 @@ class CardCameraView extends StatefulWidget {
   });
 
   /// Called for every recognized frame with its cards and how long it took.
-  final void Function(List<RecognizedCard> cards, int latencyMs) onCards;
+  final void Function(
+    PreparedFrame frame,
+    List<RecognizedCard> cards,
+    int latencyMs,
+  )
+  onCards;
 
   /// Called when the detector is loaded, before the first frame.
   final void Function(ModelConfig config)? onModelLoaded;
@@ -273,7 +278,7 @@ class CardCameraViewState extends State<CardCameraView>
         _frameWidth = prepared.uprightWidth;
         _frameHeight = prepared.uprightHeight;
       });
-      widget.onCards(recognized, stopwatch.elapsedMilliseconds);
+      widget.onCards(prepared, recognized, stopwatch.elapsedMilliseconds);
     } catch (error) {
       debugPrint('Frame recognition error: $error');
     } finally {

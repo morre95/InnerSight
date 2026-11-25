@@ -6,6 +6,7 @@ import 'announcer.dart';
 import 'card_camera_view.dart';
 import 'card_overlay.dart';
 import 'cards.dart';
+import 'frame_prep.dart';
 import 'overlay_panel.dart';
 import 'tts_speaker.dart';
 
@@ -50,7 +51,11 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen> {
     );
   }
 
-  void _onCards(List<RecognizedCard> cards, int latencyMs) {
+  void _onCards(
+    PreparedFrame frame,
+    List<RecognizedCard> cards,
+    int latencyMs,
+  ) {
     _announcer.observe(cards);
     setState(() {
       _latencyMs = latencyMs;

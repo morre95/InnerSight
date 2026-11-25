@@ -2,6 +2,7 @@ from innersight.announcement import STABLE_FRAME_COUNT
 from innersight.cards import BACK_RANK, Box, Card, CardColor, Detection
 from innersight.guessing import (
     FIRST_CARD_PHRASE,
+    LAST_CARD_PHRASE,
     NEXT_CARD_PHRASE,
     NO_ANSWER_PHRASE,
     NO_CARD_PHRASE,
@@ -121,11 +122,30 @@ def test_does_not_lock_in_before_an_answer_is_given() -> None:
 
 
 def test_asks_for_the_next_card_after_locking_in() -> None:
-    session, spoken = start_session()
+    session, spoken = start_session(card_count=3)
 
     play_round(session, RED_SEVEN, GuessOutcome.MISS)
 
     assert spoken[-1] == NEXT_CARD_PHRASE
+
+
+def test_asks_for_the_last_card_when_one_card_is_left() -> None:
+    session, spoken = start_session(card_count=3)
+    play_round(session, RED_SEVEN, GuessOutcome.MISS)
+
+    play_round(session, BLUE_SKIP, GuessOutcome.MISS)
+
+    assert spoken[-1] == LAST_CARD_PHRASE
+
+
+def test_reports_the_card_that_starts_a_round_on_the_frame_it_settles() -> None:
+    session, _ = start_session()
+    frames_before_settling = [session.observe([RED_SEVEN]) for _ in range(STABLE_FRAME_COUNT - 1)]
+
+    round_card = session.observe([RED_SEVEN])
+
+    assert frames_before_settling == [None] * (STABLE_FRAME_COUNT - 1)
+    assert round_card == RED_SEVEN
 
 
 def test_keeps_the_card_of_the_round_when_another_card_comes_into_view() -> None:
@@ -164,6 +184,16 @@ def test_reads_the_back_of_a_card_aloud_without_starting_a_round() -> None:
 
     assert spoken == ["card back"]
     assert session.card is None
+
+
+def test_reports_no_card_for_the_back_of_a_card() -> None:
+    session, _ = start_session()
+    for _ in range(STABLE_FRAME_COUNT - 1):
+        session.observe([CARD_BACK])
+
+    round_card = session.observe([CARD_BACK])
+
+    assert round_card is None
 
 
 def test_finishes_after_the_chosen_number_of_cards() -> None:

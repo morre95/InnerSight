@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:typed_data';
+
 import 'package:innersight_mobile/src/announcer.dart';
+import 'package:innersight_mobile/src/card_picture.dart';
 import 'package:innersight_mobile/src/cards.dart';
+import 'package:innersight_mobile/src/frame_prep.dart';
 import 'package:innersight_mobile/src/game_screen.dart';
 import 'package:innersight_mobile/src/guessing.dart';
 import 'package:innersight_mobile/src/result_board.dart';
@@ -123,6 +127,47 @@ void main() {
       expect(spoken.last, noAnswerPhrase);
     });
 
+    test('asks for the next card after locking in', () {
+      final session = startSession(cardCount: 3);
+
+      _playRound(session, _redSeven, GuessOutcome.miss);
+
+      expect(spoken.last, nextCardPhrase);
+    });
+
+    test('asks for the last card when one card is left', () {
+      final session = startSession(cardCount: 3);
+      _playRound(session, _redSeven, GuessOutcome.miss);
+
+      _playRound(session, _blueSkip, GuessOutcome.miss);
+
+      expect(spoken.last, lastCardPhrase);
+    });
+
+    test('reports the card that starts a round on the frame it settles', () {
+      final session = startSession();
+      final framesBeforeSettling = [
+        for (var i = 0; i < stableFrameCount - 1; i++)
+          session.observe([_redSeven]),
+      ];
+
+      final roundCard = session.observe([_redSeven]);
+
+      expect(framesBeforeSettling, everyElement(isNull));
+      expect(roundCard, _redSeven);
+    });
+
+    test('reports no card for the back of a card', () {
+      final session = startSession();
+      for (var i = 0; i < stableFrameCount - 1; i++) {
+        session.observe([_cardBack]);
+      }
+
+      final roundCard = session.observe([_cardBack]);
+
+      expect(roundCard, isNull);
+    });
+
     test('keeps the card of the round when another card comes into view', () {
       final session = startSession();
       _holdUp(session, _redSeven);
@@ -142,7 +187,7 @@ void main() {
       }
 
       expect(session.card, isNull);
-      expect(spoken.last, nextCardPhrase);
+      expect(spoken.last, lastCardPhrase);
     });
 
     test('reads the back of a card aloud without starting a round', () {
@@ -188,6 +233,37 @@ void main() {
     });
   });
 
+  group('cropCardPicture', () {
+    test('cuts the pixels inside the box out of the frame as RGBA', () {
+      // A frame 3 wide and 2 high, where every pixel has its index as red.
+      final frame = PreparedFrame(
+        rgbBytes: Uint8List.fromList([
+          for (var pixel = 0; pixel < 6; pixel++) ...[pixel, 100, 200],
+        ]),
+        uprightWidth: 3,
+        uprightHeight: 2,
+        inputTensor: Float32List(0),
+        inputSize: 640,
+        letterboxScale: 1,
+        padLeft: 0,
+        padTop: 0,
+      );
+
+      final picture = cropCardPicture(
+        frame,
+        const Box(x1: 1, y1: 0, x2: 3, y2: 2),
+      );
+
+      expect((picture.width, picture.height), (2, 2));
+      expect(picture.rgbaBytes, [
+        ...[1, 100, 200, 255],
+        ...[2, 100, 200, 255],
+        ...[4, 100, 200, 255],
+        ...[5, 100, 200, 255],
+      ]);
+    });
+  });
+
   group('ResultBoard', () {
     testWidgets('shows the count of every outcome and every card read', (
       tester,
@@ -205,14 +281,25 @@ void main() {
         ),
       ];
 
+      final picture = CardPicture(
+        rgbaBytes: Uint8List(2 * 3 * 4),
+        width: 2,
+        height: 3,
+      );
+
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: ResultBoard(rounds: rounds, onDone: () {}),
+            body: ResultBoard(
+              rounds: rounds,
+              pictures: [picture, picture],
+              onDone: () {},
+            ),
           ),
         ),
       );
 
+      expect(find.byType(CardPictureView), findsNWidgets(2));
       expect(find.text('Session result: 2 cards'), findsOneWidget);
       expect(find.text('1   50%'), findsNWidgets(2));
       expect(find.text('0   0%'), findsNWidgets(2));
