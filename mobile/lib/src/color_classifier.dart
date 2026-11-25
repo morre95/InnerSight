@@ -3,14 +3,6 @@ import 'dart:typed_data';
 
 import 'cards.dart';
 
-/// OpenCV-scaled hue ranges `[start, end)` where hue runs in `0..179`.
-const Map<CardColor, List<(int, int)>> hueRanges = {
-  CardColor.red: [(0, 12), (160, 180)],
-  CardColor.yellow: [(12, 40)],
-  CardColor.green: [(40, 90)],
-  CardColor.blue: [(90, 140)],
-};
-
 const int minSaturation = 70;
 const int minValue = 50;
 const double centerFraction = 0.6;
@@ -19,7 +11,9 @@ const double minDominantShare = 0.6;
 
 /// Classifies the suit color of a UNO card from a packed RGB image and optional [box].
 ///
-/// Mirrors `classify_card_color` in `src/innersight/color.py`.
+/// Hue is OpenCV-scaled and runs in `0..179`. The hue ranges and thresholds are tuned for the
+/// phone camera and differ on purpose from `classify_card_color` in
+/// `src/innersight/color.py`, which is tuned for a webcam (docs/adr/0001).
 CardColor classifyCardColor({
   required Uint8List rgbBytes,
   required int imageWidth,
