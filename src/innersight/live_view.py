@@ -37,6 +37,16 @@ def show_frame(frame_bgr: np.ndarray) -> int:
     return cv2.waitKey(1) & 0xFF
 
 
+def show_frame_for_key_code(frame_bgr: np.ndarray) -> int:
+    """Show the frame in the preview window and return the full code of the key pressed in it.
+
+    Unlike the one-byte code of show_frame, the full code tells the arrow keys apart from the
+    letters. It is -1 when no key was pressed.
+    """
+    cv2.imshow(WINDOW_TITLE, frame_bgr)
+    return cv2.waitKeyEx(1)
+
+
 def show_frame_until_key(frame_bgr: np.ndarray) -> int:
     """Show the frame and wait until a key is pressed in the window; return the key's code.
 

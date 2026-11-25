@@ -111,6 +111,37 @@ On one image, printing the cards and saving an annotated copy:
 uv run innersight image hand.jpg --output annotated.jpg
 ```
 
+## Play the guessing game
+
+Guess the card you hold while blindfolded, then tell the game how the guess went:
+
+```bash
+uv run innersight game --cards 10
+```
+
+`--cards` is how many cards the session has. Everything is spoken, so you can play without
+seeing the screen:
+
+1. Guess, then hold the card up to the camera. The voice reads it.
+2. Answer with the arrow keys. The voice says what each key means, so you can press several;
+   the last one counts.
+
+   | Key   | Answer      |
+   | ----- | ----------- |
+   | Up    | both right  |
+   | Left  | color right |
+   | Right | rank right  |
+   | Down  | miss        |
+
+3. Press `SPACE` to lock in the answer, then take the card away and hold up the next one.
+
+After the last card the voice says the result and a result board shows the count of every
+answer and every card. `Q` ends the session early. Every round is added to `logs/guesses.csv`
+with the card the detector read and how sure it was; `--log` chooses another file.
+
+In the phone app, choose the number of cards and press Start game. Swipe up, left, right or
+down for the same answers as the arrow keys, and double-tap to lock in.
+
 ## Calibrate the colors
 
 The hue ranges and thresholds in [color.py](src/innersight/color.py) are starting values. Warm

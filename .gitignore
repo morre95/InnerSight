@@ -9,6 +9,9 @@ dist/
 # Local configuration
 .env
 
+# Guessing game results
+logs/
+
 # Training data, runs and model weights are large and reproducible
 datasets/
 runs/

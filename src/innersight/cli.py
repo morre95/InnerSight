@@ -1,8 +1,10 @@
-"""Recognize UNO cards in an image or on camera, and record and review training images."""
+"""Recognize UNO cards in an image or on camera, play the guessing game, and record and review
+training images."""
 
 import argparse
 import random
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -13,19 +15,26 @@ from innersight.capture import ALL_BURSTS, CaptureSession
 from innersight.dataset import CardDataset
 from innersight.detector import YoloCardDetector
 from innersight.errors import InnerSightError
+from innersight.game import play_guessing_game
+from innersight.guess_log import GuessLog
+from innersight.guessing import GuessingSession
 from innersight.live_view import (
     QUIT_KEY,
     close_window,
     open_camera,
     show_frame,
+    show_frame_for_key_code,
     show_frame_until_key,
 )
 from innersight.recognition import CardDetector, recognize_cards
+from innersight.result_board import draw_result_board
 from innersight.review import ReviewSession
 
 DEFAULT_MIN_CONFIDENCE = 0.5
 DEFAULT_DATASET_DIR = Path("datasets/own-cards")
 DEFAULT_WEIGHTS_FILE = Path("weights/own-cards.pt")
+DEFAULT_CARD_COUNT = 10
+DEFAULT_GUESS_LOG_FILE = Path("logs/guesses.csv")
 
 
 def main() -> None:
@@ -42,6 +51,8 @@ def _run_command(args: argparse.Namespace) -> None:
             _recognize_image(_load_detector(args), args.path, args.output)
         case "camera":
             _recognize_camera(_load_detector(args), args.index, _create_announcer(args.mute))
+        case "game":
+            _play_game(_load_detector(args), args.index, args.cards, args.log)
         case "capture":
             _capture_dataset(args.index, args.dataset)
         case "review":
@@ -92,6 +103,24 @@ def _add_recognition_commands(
     )
     camera.add_argument("--mute", action="store_true", help="do not say the cards aloud")
 
+    game = commands.add_parser(
+        "game",
+        parents=[detector_options, camera_options],
+        help="guess the cards you hold while blindfolded, and score yourself with the arrow keys",
+    )
+    game.add_argument(
+        "--cards",
+        type=_positive_int,
+        default=DEFAULT_CARD_COUNT,
+        help="how many cards to guess in the session (default: %(default)s)",
+    )
+    game.add_argument(
+        "--log",
+        type=Path,
+        default=DEFAULT_GUESS_LOG_FILE,
+        help="CSV file the rounds are added to (default: %(default)s)",
+    )
+
 
 def _add_dataset_commands(
     commands: "argparse._SubParsersAction[argparse.ArgumentParser]",
@@ -121,6 +150,12 @@ def _existing_file(value: str) -> Path:
     if not path.is_file():
         raise argparse.ArgumentTypeError(f"file not found: {value}")
     return path
+
+
+def _positive_int(value: str) -> int:
+    if not value.isdecimal() or int(value) == 0:
+        raise argparse.ArgumentTypeError(f"not a whole number above zero: {value}")
+    return int(value)
 
 
 def _image_output_path(value: str) -> Path:
@@ -167,6 +202,23 @@ def _recognize_camera(detector: CardDetector, camera_index: int, announcer: Card
             announcer.observe(cards)
             if show_frame(draw_cards(frame, cards)) == QUIT_KEY:
                 break
+
+
+def _play_game(detector: CardDetector, camera_index: int, card_count: int, log_file: Path) -> None:
+    # Imported here for the same reason as in _create_announcer.
+    from innersight.speech import PocketTtsVoice
+
+    session = GuessingSession(card_count, PocketTtsVoice().say)
+    guess_log = GuessLog(log_file, datetime.now())
+    with open_camera(camera_index) as frames:
+        play_guessing_game(frames, show_frame_for_key_code, detector, session, guess_log)
+    if not session.rounds:
+        return
+    print(f"The rounds are logged in {log_file}")
+    try:
+        show_frame_until_key(draw_result_board(session.rounds))
+    finally:
+        close_window()
 
 
 def _capture_dataset(camera_index: int, dataset_dir: Path) -> None:

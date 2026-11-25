@@ -40,18 +40,21 @@ def spoken_name(face: CardFace) -> str:
     return face.describe(SPOKEN_RANKS.get(face.rank, face.rank))
 
 
-class CardAnnouncer:
-    """Says a card's name once when it settles in view, and again only after a change."""
+class SettledCardWatcher:
+    """Reports a card once when it settles in view, and again only after a change."""
 
-    def __init__(self, say: Callable[[str], None]) -> None:
-        self._say = say
+    def __init__(self) -> None:
         self._candidate: CardFace | None = None
         self._candidate_frame_count = 0
-        self._announced: CardFace | None = None
+        self._settled: CardFace | None = None
 
-    def observe(self, cards: Sequence[Card]) -> None:
-        """Take in the cards recognized in one frame. With several, the surest one counts."""
-        face = max(cards, key=_confidence).face if cards else None
+    def observe(self, cards: Sequence[Card]) -> Card | None:
+        """Take in the cards recognized in one frame. With several, the surest one counts.
+
+        Returns the card on the frame it settles in view, and None on every other frame.
+        """
+        card = max(cards, key=_confidence) if cards else None
+        face = card.face if card else None
         if face == self._candidate:
             self._candidate_frame_count += 1
         else:
@@ -59,10 +62,24 @@ class CardAnnouncer:
             self._candidate_frame_count = 1
 
         is_settled = self._candidate_frame_count == STABLE_FRAME_COUNT
-        if is_settled and face != self._announced:
-            self._announced = face
-            if face is not None:
-                self._say(spoken_name(face))
+        if not is_settled or face == self._settled:
+            return None
+        self._settled = face
+        return card
+
+
+class CardAnnouncer:
+    """Says a card's name once when it settles in view, and again only after a change."""
+
+    def __init__(self, say: Callable[[str], None]) -> None:
+        self._say = say
+        self._watcher = SettledCardWatcher()
+
+    def observe(self, cards: Sequence[Card]) -> None:
+        """Take in the cards recognized in one frame. With several, the surest one counts."""
+        card = self._watcher.observe(cards)
+        if card is not None:
+            self._say(spoken_name(card.face))
 
 
 def _confidence(card: Card) -> float:

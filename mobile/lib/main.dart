@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'src/camera_screen.dart';
+import 'src/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,7 +24,7 @@ class InnerSightApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const CameraRecognitionScreen(),
+      home: const HomeScreen(),
     );
   }
 }

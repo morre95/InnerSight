@@ -19,3 +19,7 @@ class DatasetWriteError(InnerSightError):
 
 class SpeechError(InnerSightError):
     pass
+
+
+class GuessLogWriteError(InnerSightError):
+    pass
