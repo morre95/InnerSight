@@ -28,6 +28,11 @@ RecognizedCard _makeCard(
 final _redSeven = _makeCard(CardColor.red, '7', confidence: 0.8);
 final _blueSkip = _makeCard(CardColor.blue, 'skip');
 final _unsureGreenTwo = _makeCard(CardColor.green, '2', confidence: 0.6);
+final _redSevenTooClose = RecognizedCard(
+  detection: _redSeven.detection,
+  color: _redSeven.color,
+  isTooClose: true,
+);
 final _cardBack = _makeCard(CardColor.back, 'back');
 
 /// Takes the last card away and holds up [card] until it settles.
@@ -250,6 +255,41 @@ void main() {
 
       expect(session.card, _redSeven);
       expect(spoken, ['red seven']);
+    });
+
+    test('starts a round with a card held too close and says so', () {
+      final session = startSession();
+
+      _holdUp(session, _redSevenTooClose);
+
+      expect(session.card, _redSevenTooClose);
+      expect(spoken, ['red seven. Too close']);
+    });
+
+    test('says the card of the round again when it is moved too close', () {
+      final session = startSession();
+      _holdUp(session, _redSeven);
+      session.giveAnswer(GuessOutcome.colorRight);
+      spoken.clear();
+
+      for (var i = 0; i < stableFrameCount; i++) {
+        session.observe([_redSevenTooClose]);
+      }
+
+      expect(spoken, ['red seven. Too close']);
+      expect(session.answer, GuessOutcome.colorRight);
+    });
+
+    test('warns without a name about a card too close between rounds', () {
+      final session = startSession(cardCount: 3);
+      _playRound(session, _redSeven, GuessOutcome.miss);
+      spoken.clear();
+
+      for (var i = 0; i < stableFrameCount; i++) {
+        session.observe([_redSevenTooClose]);
+      }
+
+      expect(spoken, ['Too close']);
     });
 
     test('does not start the next round with the card still in view', () {

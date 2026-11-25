@@ -205,11 +205,19 @@ class Detection {
 }
 
 /// A detected card together with its classified color.
+///
+/// A card [isTooClose] when it does not fit in the view of the camera. It can
+/// often still be read, but any closer and the detector loses it.
 class RecognizedCard {
-  const RecognizedCard({required this.detection, required this.color});
+  const RecognizedCard({
+    required this.detection,
+    required this.color,
+    this.isTooClose = false,
+  });
 
   final Detection detection;
   final CardColor color;
+  final bool isTooClose;
 
   CardFace get face => CardFace(color: color, rank: detection.rank);
 

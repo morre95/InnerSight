@@ -26,8 +26,8 @@ def make_frame_with_red_left_half_and_blue_right_half() -> np.ndarray:
 
 def test_gives_each_detection_the_color_inside_its_box() -> None:
     frame = make_frame_with_red_left_half_and_blue_right_half()
-    left = Detection(rank="7", confidence=0.9, box=Box(0, 0, 200, 200))
-    right = Detection(rank="skip", confidence=0.8, box=Box(200, 0, 400, 200))
+    left = Detection(rank="7", confidence=0.9, box=Box(0, 20, 200, 180))
+    right = Detection(rank="skip", confidence=0.8, box=Box(200, 20, 400, 180))
 
     cards = recognize_cards(frame, FakeDetector([left, right]))
 
@@ -36,7 +36,7 @@ def test_gives_each_detection_the_color_inside_its_box() -> None:
 
 def test_gives_the_back_no_color_of_its_own_even_when_its_box_is_red() -> None:
     frame = make_frame_with_red_left_half_and_blue_right_half()
-    back = Detection(rank="back", confidence=0.9, box=Box(0, 0, 200, 200))
+    back = Detection(rank="back", confidence=0.9, box=Box(0, 20, 200, 180))
 
     cards = recognize_cards(frame, FakeDetector([back]))
 
@@ -45,7 +45,7 @@ def test_gives_the_back_no_color_of_its_own_even_when_its_box_is_red() -> None:
 
 def test_calls_a_wild_card_wild_even_when_its_box_is_red() -> None:
     frame = make_frame_with_red_left_half_and_blue_right_half()
-    joker = Detection(rank="joker", confidence=0.9, box=Box(0, 0, 200, 200))
+    joker = Detection(rank="joker", confidence=0.9, box=Box(0, 20, 200, 180))
 
     cards = recognize_cards(frame, FakeDetector([joker]))
 
@@ -56,3 +56,30 @@ def test_returns_no_cards_when_nothing_is_detected() -> None:
     frame = make_frame_with_red_left_half_and_blue_right_half()
 
     assert recognize_cards(frame, FakeDetector([])) == []
+
+
+def test_finds_a_card_too_close_when_it_is_as_tall_as_the_frame() -> None:
+    frame = make_frame_with_red_left_half_and_blue_right_half()
+    as_tall_as_the_frame = Detection(rank="7", confidence=0.9, box=Box(0, 0, 150, FRAME_HEIGHT))
+
+    (card,) = recognize_cards(frame, FakeDetector([as_tall_as_the_frame]))
+
+    assert card.is_too_close
+
+
+def test_finds_a_card_too_close_when_it_is_as_wide_as_the_frame() -> None:
+    frame = make_frame_with_red_left_half_and_blue_right_half()
+    as_wide_as_the_frame = Detection(rank="7", confidence=0.9, box=Box(0, 50, FRAME_WIDTH, 150))
+
+    (card,) = recognize_cards(frame, FakeDetector([as_wide_as_the_frame]))
+
+    assert card.is_too_close
+
+
+def test_does_not_find_a_card_too_close_when_it_fits_in_the_frame() -> None:
+    frame = make_frame_with_red_left_half_and_blue_right_half()
+    with_room_to_spare = Detection(rank="7", confidence=0.9, box=Box(10, 10, 130, 190))
+
+    (card,) = recognize_cards(frame, FakeDetector([with_room_to_spare]))
+
+    assert not card.is_too_close

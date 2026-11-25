@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from innersight.announcement import SPOKEN_RANKS, STABLE_FRAME_COUNT, CardAnnouncer, spoken_name
@@ -13,6 +15,7 @@ def make_card(color: CardColor, rank: str, confidence: float = 0.9) -> Card:
 RED_SEVEN = make_card(CardColor.RED, "7")
 BLUE_SKIP = make_card(CardColor.BLUE, "skip")
 UNREADABLE_SEVEN = make_card(CardColor.UNKNOWN, "7")
+RED_SEVEN_TOO_CLOSE = replace(RED_SEVEN, is_too_close=True)
 
 
 def make_announcer() -> tuple[CardAnnouncer, list[str]]:
@@ -150,3 +153,57 @@ def test_does_not_take_a_card_for_gone_while_its_color_cannot_be_read() -> None:
     show(announcer, [RED_SEVEN], STABLE_FRAME_COUNT)
 
     assert spoken == ["red seven"]
+
+
+def test_says_the_card_and_that_it_is_too_close_when_it_settles_too_close() -> None:
+    announcer, spoken = make_announcer()
+
+    show(announcer, [RED_SEVEN_TOO_CLOSE], STABLE_FRAME_COUNT)
+
+    assert spoken == ["red seven. Too close"]
+
+
+def test_says_the_card_again_with_the_warning_when_it_is_moved_too_close() -> None:
+    announcer, spoken = make_announcer()
+    show(announcer, [RED_SEVEN], STABLE_FRAME_COUNT)
+
+    show(announcer, [RED_SEVEN_TOO_CLOSE], STABLE_FRAME_COUNT)
+
+    assert spoken == ["red seven", "red seven. Too close"]
+
+
+def test_warns_only_once_while_the_card_stays_too_close() -> None:
+    announcer, spoken = make_announcer()
+
+    show(announcer, [RED_SEVEN_TOO_CLOSE], STABLE_FRAME_COUNT * 5)
+
+    assert spoken == ["red seven. Too close"]
+
+
+def test_warns_again_when_the_card_comes_too_close_a_second_time() -> None:
+    announcer, spoken = make_announcer()
+    show(announcer, [RED_SEVEN_TOO_CLOSE], STABLE_FRAME_COUNT)
+    show(announcer, [RED_SEVEN], STABLE_FRAME_COUNT)
+
+    show(announcer, [RED_SEVEN_TOO_CLOSE], STABLE_FRAME_COUNT)
+
+    assert spoken == ["red seven. Too close", "red seven. Too close"]
+
+
+def test_does_not_warn_about_a_card_that_is_too_close_for_a_moment() -> None:
+    announcer, spoken = make_announcer()
+    show(announcer, [RED_SEVEN], STABLE_FRAME_COUNT)
+
+    show(announcer, [RED_SEVEN_TOO_CLOSE], STABLE_FRAME_COUNT - 1)
+    show(announcer, [RED_SEVEN], STABLE_FRAME_COUNT)
+
+    assert spoken == ["red seven"]
+
+
+def test_warns_without_a_name_when_the_card_too_close_could_not_be_read() -> None:
+    announcer, spoken = make_announcer()
+    unreadable_and_too_close = replace(UNREADABLE_SEVEN, is_too_close=True)
+
+    show(announcer, [unreadable_and_too_close], STABLE_FRAME_COUNT)
+
+    assert spoken == ["Too close"]

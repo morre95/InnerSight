@@ -82,10 +82,15 @@ class Detection:
 
 @dataclass(frozen=True)
 class Card:
-    """A detected card together with its color."""
+    """A detected card together with its color.
+
+    A card is too close when it does not fit in the view of the camera. It can often still be
+    read, but any closer and the detector loses it.
+    """
 
     detection: Detection
     color: CardColor
+    is_too_close: bool = False
 
     @property
     def face(self) -> CardFace:

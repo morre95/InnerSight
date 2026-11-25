@@ -9,6 +9,8 @@ from innersight.cards import Card, CardColor, CardFace
 # taken for the card leaving.
 STABLE_FRAME_COUNT = 5
 
+TOO_CLOSE_PHRASE = "Too close"
+
 SPOKEN_RANKS = {
     "0": "zero",
     "1": "one",
@@ -40,13 +42,47 @@ def spoken_name(face: CardFace) -> str:
     return face.describe(SPOKEN_RANKS.get(face.rank, face.rank))
 
 
+class SettlingValue[Value]:
+    """Follows a value that is read anew in every frame, and tells when it has settled.
+
+    A value settles when it has been the same for STABLE_FRAME_COUNT frames in a row.
+    """
+
+    def __init__(self, initial: Value) -> None:
+        self._candidate = initial
+        self._candidate_frame_count = 0
+        self._settled = initial
+
+    @property
+    def settled(self) -> Value:
+        """The value that last settled."""
+        return self._settled
+
+    def observe(self, value: Value) -> bool:
+        """Take in the value of one frame; tell whether it settles on something new in it."""
+        if value == self._candidate:
+            self._candidate_frame_count += 1
+        else:
+            self._candidate = value
+            self._candidate_frame_count = 1
+
+        is_settled = self._candidate_frame_count == STABLE_FRAME_COUNT
+        if not is_settled or value == self._settled:
+            return False
+        self._settled = value
+        return True
+
+
 class SettledCardWatcher:
     """Reports a card once when it settles in view, and again only after a change."""
 
     def __init__(self) -> None:
-        self._candidate: CardFace | None = None
-        self._candidate_frame_count = 0
-        self._settled: CardFace | None = None
+        self._face = SettlingValue[CardFace | None](None)
+
+    @property
+    def settled(self) -> CardFace | None:
+        """The card that last settled in view, or None when no card is in view."""
+        return self._face.settled
 
     def observe(self, cards: Sequence[Card]) -> Card | None:
         """Take in the cards recognized in one frame. With several, the surest one counts.
@@ -60,32 +96,54 @@ class SettledCardWatcher:
         readable_cards = [card for card in cards if card.color != CardColor.UNKNOWN]
         if cards and not readable_cards:
             return None
-        card = max(readable_cards, key=_confidence) if readable_cards else None
-        face = card.face if card else None
-        if face == self._candidate:
-            self._candidate_frame_count += 1
-        else:
-            self._candidate = face
-            self._candidate_frame_count = 1
+        card = max(readable_cards, key=_confidence, default=None)
+        has_settled = self._face.observe(card.face if card else None)
+        return card if has_settled else None
 
-        is_settled = self._candidate_frame_count == STABLE_FRAME_COUNT
-        if not is_settled or face == self._settled:
-            return None
-        self._settled = face
-        return card
+
+class TooCloseWatcher:
+    """Tells once when a card is held too close to the camera, and again only after it was not."""
+
+    def __init__(self) -> None:
+        self._is_too_close = SettlingValue(False)
+
+    def observe(self, cards: Sequence[Card]) -> bool:
+        """Take in the cards recognized in one frame. With several, the surest one counts.
+
+        Returns True on the frame the card has settled too close, and False on every other.
+        """
+        card = max(cards, key=_confidence, default=None)
+        is_too_close = card is not None and card.is_too_close
+        return self._is_too_close.observe(is_too_close) and is_too_close
+
+
+def with_too_close_warning(phrase: str | None) -> str:
+    """Add the warning that the card is too close to what is said, if anything is.
+
+    A new phrase cuts off the one being spoken. So when the warning comes while the name of
+    the card is spoken, it has to say the name again, or the player never hears it.
+    """
+    return TOO_CLOSE_PHRASE if phrase is None else f"{phrase}. {TOO_CLOSE_PHRASE}"
 
 
 class CardAnnouncer:
-    """Says a card's name once when it settles in view, and again only after a change."""
+    """Says a card's name once when it settles in view, and again only after a change.
+
+    It also says when the card is held too close to the camera.
+    """
 
     def __init__(self, say: Callable[[str], None]) -> None:
         self._say = say
         self._watcher = SettledCardWatcher()
+        self._too_close_watcher = TooCloseWatcher()
 
     def observe(self, cards: Sequence[Card]) -> None:
         """Take in the cards recognized in one frame. With several, the surest one counts."""
         card = self._watcher.observe(cards)
-        if card is not None:
+        if self._too_close_watcher.observe(cards):
+            face = self._watcher.settled
+            self._say(with_too_close_warning(spoken_name(face) if face else None))
+        elif card is not None:
             self._say(spoken_name(card.face))
 
 

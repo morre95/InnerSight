@@ -29,7 +29,8 @@ def draw_cards(frame_bgr: np.ndarray, cards: list[Card]) -> np.ndarray:
         outline = OUTLINE_BGR[card.color]
         label_origin = (box.x1, max(box.y1 - LABEL_GAP, LABEL_HEIGHT))
         cv2.rectangle(annotated, (box.x1, box.y1), (box.x2, box.y2), outline, OUTLINE_THICKNESS)
+        label = f"{card.label} - too close" if card.is_too_close else card.label
         cv2.putText(
-            annotated, card.label, label_origin, LABEL_FONT, LABEL_SCALE, outline, OUTLINE_THICKNESS
+            annotated, label, label_origin, LABEL_FONT, LABEL_SCALE, outline, OUTLINE_THICKNESS
         )
     return annotated

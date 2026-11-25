@@ -66,7 +66,9 @@ class CardOverlayPainter extends CustomPainter {
 
       final confPct = (card.detection.confidence * 100).round();
       final textSpan = TextSpan(
-        text: '${card.label} $confPct%',
+        text: card.isTooClose
+            ? '${card.label} $confPct% - too close'
+            : '${card.label} $confPct%',
         style: TextStyle(
           color: color,
           fontSize: 14,

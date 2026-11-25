@@ -188,6 +188,11 @@ void main() {
     final redSeven = _makeCard(CardColor.red, '7');
     final blueSkip = _makeCard(CardColor.blue, 'skip');
     final unreadableSeven = _makeCard(CardColor.unknown, '7');
+    final redSevenTooClose = RecognizedCard(
+      detection: redSeven.detection,
+      color: redSeven.color,
+      isTooClose: true,
+    );
 
     void show(
       CardAnnouncer announcer,
@@ -258,6 +263,65 @@ void main() {
       show(announcer, [redSeven], stableFrameCount);
 
       expect(spoken, ['red seven']);
+    });
+
+    test('says the card and that it is too close when it settles too '
+        'close', () {
+      final spoken = <String>[];
+      final announcer = CardAnnouncer(say: spoken.add);
+
+      show(announcer, [redSevenTooClose], stableFrameCount);
+
+      expect(spoken, ['red seven. Too close']);
+    });
+
+    test('says the card again with the warning when it is moved too '
+        'close', () {
+      final spoken = <String>[];
+      final announcer = CardAnnouncer(say: spoken.add);
+      show(announcer, [redSeven], stableFrameCount);
+
+      show(announcer, [redSevenTooClose], stableFrameCount);
+
+      expect(spoken, ['red seven', 'red seven. Too close']);
+    });
+
+    test('warns once while the card stays too close, and again the next '
+        'time', () {
+      final spoken = <String>[];
+      final announcer = CardAnnouncer(say: spoken.add);
+
+      show(announcer, [redSevenTooClose], stableFrameCount * 5);
+      show(announcer, [redSeven], stableFrameCount);
+      show(announcer, [redSevenTooClose], stableFrameCount);
+
+      expect(spoken, ['red seven. Too close', 'red seven. Too close']);
+    });
+
+    test('does not warn about a card that is too close for a moment', () {
+      final spoken = <String>[];
+      final announcer = CardAnnouncer(say: spoken.add);
+      show(announcer, [redSeven], stableFrameCount);
+
+      show(announcer, [redSevenTooClose], stableFrameCount - 1);
+      show(announcer, [redSeven], stableFrameCount);
+
+      expect(spoken, ['red seven']);
+    });
+
+    test('warns without a name when the card too close could not be '
+        'read', () {
+      final spoken = <String>[];
+      final announcer = CardAnnouncer(say: spoken.add);
+      final unreadableAndTooClose = RecognizedCard(
+        detection: unreadableSeven.detection,
+        color: unreadableSeven.color,
+        isTooClose: true,
+      );
+
+      show(announcer, [unreadableAndTooClose], stableFrameCount);
+
+      expect(spoken, ['Too close']);
     });
 
     test('announces replacement card and picks highest confidence card', () {
@@ -428,6 +492,35 @@ void main() {
         'back',
         'wild joker',
       ]);
+    });
+
+    test('finds a card too close when it is as tall or as wide as the '
+        'frame', () async {
+      final frame = PreparedFrame(
+        rgbBytes: _solidRgb(400, 200, 220, 0, 0),
+        uprightWidth: 400,
+        uprightHeight: 200,
+        inputTensor: Float32List(0),
+        inputSize: 16,
+        letterboxScale: 1.0,
+        padLeft: 0,
+        padTop: 0,
+      );
+      Detection sevenIn(Box box) =>
+          Detection(rank: '7', confidence: 0.9, box: box);
+      final detector = _FakeDetector([
+        sevenIn(const Box(x1: 0, y1: 0, x2: 150, y2: 200)),
+        sevenIn(const Box(x1: 0, y1: 50, x2: 400, y2: 150)),
+        sevenIn(const Box(x1: 10, y1: 10, x2: 130, y2: 190)),
+      ]);
+
+      final cards = await recognizeCards(
+        frame,
+        detector,
+        ModelConfig.defaults(),
+      );
+
+      expect(cards.map((card) => card.isTooClose), [true, true, false]);
     });
 
     test('rotates 90-degree sensor frame and pads letterbox with 114/255', () {

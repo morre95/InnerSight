@@ -64,6 +64,7 @@ class GuessingSession {
   final DateTime Function() _now;
 
   final SettledCardWatcher _watcher = SettledCardWatcher();
+  final TooCloseWatcher _tooCloseWatcher = TooCloseWatcher();
   final List<GuessRound> _rounds = [];
   RecognizedCard? _card;
   DateTime? _roundStartedAt;
@@ -88,22 +89,51 @@ class GuessingSession {
   /// a round is being played, a surer reading may correct its card for a
   /// short time. On every frame that neither starts a round nor corrects its
   /// card, null is returned.
+  ///
+  /// A card held too close to the camera is still read, and the player is
+  /// told to move it.
   RecognizedCard? observe(List<RecognizedCard> cards) {
     final settledCard = _watcher.observe(cards);
-    if (settledCard == null || isFinished) {
+    final isWarningDue = _tooCloseWatcher.observe(cards);
+    if (isFinished) {
       return null;
+    }
+    var (roundCard, phrase) = _takeIn(settledCard);
+    if (isWarningDue) {
+      // Without a new name to say, the name of the card being played is said
+      // again.
+      final card = _card;
+      final name = card == null ? null : _spokenName(card);
+      phrase = withTooCloseWarning(phrase ?? name);
+    }
+    if (phrase != null) {
+      say(phrase);
+    }
+    return roundCard;
+  }
+
+  String _spokenName(RecognizedCard card) =>
+      spokenName(card.face, spokenRanks: spokenRanks);
+
+  /// Lets a card that settled start or correct a round.
+  ///
+  /// Returns the card of the round if it changed, and what to say about the
+  /// settled card.
+  (RecognizedCard?, String?) _takeIn(RecognizedCard? settledCard) {
+    if (settledCard == null) {
+      return (null, null);
     }
     final card = _card;
     if (card != null) {
       return _correctCard(card, settledCard);
     }
-    say(spokenName(settledCard.face, spokenRanks: spokenRanks));
+    final name = _spokenName(settledCard);
     if (settledCard.color == CardColor.back) {
-      return null;
+      return (null, name);
     }
     _card = settledCard;
     _roundStartedAt = _now();
-    return settledCard;
+    return (settledCard, name);
   }
 
   /// Replaces the card of the round with another reading that the model is
@@ -111,9 +141,9 @@ class GuessingSession {
   ///
   /// A card misread at a distance is often read right once it is held closer.
   /// The answer given so far is dropped, as it was an answer to the card that
-  /// was read first. Returns the new card of the round, or null if the
-  /// reading is not taken.
-  RecognizedCard? _correctCard(
+  /// was read first. Returns the new card of the round and what to say, or
+  /// neither if the reading is not taken.
+  (RecognizedCard?, String?) _correctCard(
     RecognizedCard card,
     RecognizedCard settledCard,
   ) {
@@ -123,13 +153,11 @@ class GuessingSession {
         settledCard.detection.confidence > card.detection.confidence;
     final isInTime = _now().difference(_roundStartedAt!) <= correctionTime;
     if (!(isOtherCard && isSurer && isInTime)) {
-      return null;
+      return (null, null);
     }
-    final name = spokenName(settledCard.face, spokenRanks: spokenRanks);
-    say('$correctionPhrase. $name');
     _card = settledCard;
     _answer = null;
-    return settledCard;
+    return (settledCard, '$correctionPhrase. ${_spokenName(settledCard)}');
   }
 
   /// Says the outcome, and makes it the answer of the round being played.

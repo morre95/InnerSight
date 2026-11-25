@@ -7,6 +7,9 @@ import numpy as np
 from innersight.cards import BACK_RANK, WILD_RANKS, Box, Card, CardColor, Detection
 from innersight.color import classify_card_color
 
+# A card whose box is as tall or as wide as this share of the frame does not fit in the view.
+FULL_VIEW_FRACTION = 0.98
+
 
 class CardDetector(Protocol):
     def detect(self, frame_bgr: np.ndarray) -> list[Detection]: ...
@@ -14,9 +17,21 @@ class CardDetector(Protocol):
 
 def recognize_cards(frame_bgr: np.ndarray, detector: CardDetector) -> list[Card]:
     return [
-        Card(detection=detection, color=_read_color(frame_bgr, detection))
+        Card(
+            detection=detection,
+            color=_read_color(frame_bgr, detection),
+            is_too_close=_fills_the_view(detection.box, frame_bgr),
+        )
         for detection in detector.detect(frame_bgr)
     ]
+
+
+def _fills_the_view(box: Box, frame_bgr: np.ndarray) -> bool:
+    frame_height, frame_width = frame_bgr.shape[:2]
+    return (
+        box.y2 - box.y1 >= FULL_VIEW_FRACTION * frame_height
+        or box.x2 - box.x1 >= FULL_VIEW_FRACTION * frame_width
+    )
 
 
 def _read_color(frame_bgr: np.ndarray, detection: Detection) -> CardColor:

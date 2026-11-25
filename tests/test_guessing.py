@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from innersight.announcement import STABLE_FRAME_COUNT
 from innersight.cards import BACK_RANK, Box, Card, CardColor, Detection
 from innersight.guessing import (
@@ -23,6 +25,7 @@ def make_card(color: CardColor, rank: str, confidence: float = 0.9) -> Card:
 RED_SEVEN = make_card(CardColor.RED, "7", confidence=0.8)
 BLUE_SKIP = make_card(CardColor.BLUE, "skip")
 UNSURE_GREEN_TWO = make_card(CardColor.GREEN, "2", confidence=0.6)
+RED_SEVEN_TOO_CLOSE = replace(RED_SEVEN, is_too_close=True)
 CARD_BACK = make_card(CardColor.BACK, BACK_RANK)
 
 
@@ -317,3 +320,44 @@ def test_counts_every_outcome_even_one_that_never_happened() -> None:
         GuessOutcome.RANK_RIGHT: 0,
         GuessOutcome.MISS: 0,
     }
+
+
+def test_starts_a_round_with_a_card_held_too_close_and_says_so() -> None:
+    session, spoken = start_session()
+
+    hold_up(session, RED_SEVEN_TOO_CLOSE)
+
+    assert session.card == RED_SEVEN_TOO_CLOSE
+    assert spoken == ["red seven. Too close"]
+
+
+def test_says_the_card_of_the_round_again_when_it_is_moved_too_close() -> None:
+    session, spoken = start_session()
+    hold_up(session, RED_SEVEN)
+
+    for _ in range(STABLE_FRAME_COUNT):
+        session.observe([RED_SEVEN_TOO_CLOSE])
+
+    assert spoken == ["red seven", "red seven. Too close"]
+
+
+def test_keeps_the_answer_when_the_card_is_moved_too_close() -> None:
+    session, _ = start_session()
+    hold_up(session, RED_SEVEN)
+    session.give_answer(GuessOutcome.COLOR_RIGHT)
+
+    for _ in range(STABLE_FRAME_COUNT):
+        session.observe([RED_SEVEN_TOO_CLOSE])
+
+    assert session.answer == GuessOutcome.COLOR_RIGHT
+
+
+def test_warns_without_a_name_about_a_card_too_close_between_rounds() -> None:
+    session, spoken = start_session(card_count=3)
+    play_round(session, RED_SEVEN, GuessOutcome.MISS)
+    spoken.clear()
+
+    for _ in range(STABLE_FRAME_COUNT):
+        session.observe([RED_SEVEN_TOO_CLOSE])
+
+    assert spoken == ["Too close"]

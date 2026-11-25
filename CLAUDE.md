@@ -82,6 +82,10 @@ uv run python scripts/measure_color_reading.py
    surest card for `STABLE_FRAME_COUNT` frames in a row, and again only after it changes or
    leaves. `CardAnnouncer` speaks what the watcher reports. The watcher leaves out frames
    where the color is `UNKNOWN`, so a card such as "unknown 5" is never announced or guessed.
+4. A card whose box is as tall or as wide as the frame is flagged `is_too_close`
+   (`recognition.py`). `TooCloseWatcher` reports it once it has settled, and both the announcer
+   and the guessing session say "Too close". A new phrase cuts off the one being spoken, so the
+   warning repeats the name of the card (`with_too_close_warning`).
 
 Consequences worth knowing:
 

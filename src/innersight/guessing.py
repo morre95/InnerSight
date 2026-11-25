@@ -6,7 +6,12 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
-from innersight.announcement import SettledCardWatcher, spoken_name
+from innersight.announcement import (
+    SettledCardWatcher,
+    TooCloseWatcher,
+    spoken_name,
+    with_too_close_warning,
+)
 from innersight.cards import CARD_BACK, Card, CardFace
 
 FIRST_CARD_PHRASE = "Hold up your first card"
@@ -59,6 +64,7 @@ class GuessingSession:
         self._say = say
         self._clock = clock
         self._watcher = SettledCardWatcher()
+        self._too_close_watcher = TooCloseWatcher()
         self._card: Card | None = None
         self._round_started_at = 0.0
         self._answer: GuessOutcome | None = None
@@ -91,35 +97,54 @@ class GuessingSession:
         The back of a card is read aloud but starts no round, as there is nothing to guess.
         While a round is being played, a surer reading may correct its card for a short time.
         On every frame that neither starts a round nor corrects its card, None is returned.
+
+        A card held too close to the camera is still read, and the player is told to move it.
         """
         settled_card = self._watcher.observe(cards)
-        if settled_card is None or self.is_finished:
+        is_warning_due = self._too_close_watcher.observe(cards)
+        if self.is_finished:
             return None
+        round_card, phrase = self._take_in(settled_card)
+        if is_warning_due:
+            # Without a new name to say, the name of the card being played is said again.
+            name = spoken_name(self._card.face) if self._card else None
+            phrase = with_too_close_warning(phrase or name)
+        if phrase is not None:
+            self._say(phrase)
+        return round_card
+
+    def _take_in(self, settled_card: Card | None) -> tuple[Card | None, str | None]:
+        """Let a card that settled start or correct a round.
+
+        Returns the card of the round if it changed, and what to say about the settled card.
+        """
+        if settled_card is None:
+            return None, None
         if self._card is not None:
             return self._correct_card(self._card, settled_card)
-        self._say(spoken_name(settled_card.face))
+        name = spoken_name(settled_card.face)
         if settled_card.face == CARD_BACK:
-            return None
+            return None, name
         self._card = settled_card
         self._round_started_at = self._clock()
-        return settled_card
+        return settled_card, name
 
-    def _correct_card(self, card: Card, settled_card: Card) -> Card | None:
+    def _correct_card(self, card: Card, settled_card: Card) -> tuple[Card | None, str | None]:
         """Replace the card of the round with another reading that the model is surer of.
 
         A card misread at a distance is often read right once it is held closer. The answer
         given so far is dropped, as it was an answer to the card that was read first.
-        Returns the new card of the round, or None if the reading is not taken.
+        Returns the new card of the round and what to say, or neither if the reading is not
+        taken.
         """
         is_other_card = settled_card.face not in (card.face, CARD_BACK)
         is_surer = settled_card.detection.confidence > card.detection.confidence
         is_in_time = self._clock() - self._round_started_at <= CORRECTION_SECONDS
         if not (is_other_card and is_surer and is_in_time):
-            return None
-        self._say(f"{CORRECTION_PHRASE}. {spoken_name(settled_card.face)}")
+            return None, None
         self._card = settled_card
         self._answer = None
-        return settled_card
+        return settled_card, f"{CORRECTION_PHRASE}. {spoken_name(settled_card.face)}"
 
     def give_answer(self, outcome: GuessOutcome) -> None:
         """Say the outcome, and make it the answer of the round being played.
