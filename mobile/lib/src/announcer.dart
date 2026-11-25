@@ -18,9 +18,8 @@ String spokenName(
 ///
 /// Direct port of `SettlingValue` in `src/innersight/announcement.py`.
 class SettlingValue<Value> {
-  SettlingValue(this._initial) : _candidate = _initial, _settled = _initial;
+  SettlingValue(Value initial) : _candidate = initial, _settled = initial;
 
-  final Value _initial;
   Value _candidate;
   int _candidateFrameCount = 0;
   Value _settled;
@@ -44,12 +43,6 @@ class SettlingValue<Value> {
     }
     _settled = value;
     return true;
-  }
-
-  void reset() {
-    _candidate = _initial;
-    _candidateFrameCount = 0;
-    _settled = _initial;
   }
 }
 
@@ -118,11 +111,6 @@ class CardWatcher {
     final isTooClose = _surest(cards)?.isTooClose ?? false;
     return _isTooClose.observe(isTooClose) && isTooClose;
   }
-
-  void reset() {
-    _face.reset();
-    _isTooClose.reset();
-  }
 }
 
 /// Adds the warning that the card is too close to what is said, if anything.
@@ -161,6 +149,4 @@ class CardAnnouncer {
       say(spokenName(card.face, spokenRanks: spokenRanks));
     }
   }
-
-  void reset() => _watcher.reset();
 }

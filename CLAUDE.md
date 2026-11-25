@@ -147,14 +147,23 @@ only.
 
 ### Mobile structure
 
-`CardCameraView` (`card_camera_view.dart`) owns the camera, the detector and the preview with
-card outlines, and reports each recognized frame through `onCards`. Screens wrap it and decide
-what to do with the cards: `CameraRecognitionScreen` announces them, `GameScreen` feeds a
-`GuessingSession`. Screens reach `switchCamera()` through a `GlobalKey<CardCameraViewState>`.
+`HomeScreen` loads the detector once when the app starts, keeps it for as long as the app runs,
+and passes it with its config to the screens. So a screen has the spoken ranks from the start.
+The minimum confidence is passed with every `detect` call, never stored in the shared detector.
+
+`CardCameraView` (`card_camera_view.dart`) owns the camera and the preview with card outlines,
+and reports each recognized frame through `onCards`. It is given the detector and does not
+dispose it. Screens wrap it and decide what to do with the cards: `CameraRecognitionScreen`
+announces them, `GameScreen` feeds a `GuessingSession`. Screens reach `switchCamera()` through
+a `GlobalKey<CardCameraViewState>`. Switching the camera resets nothing: a round keeps its card
+and answer.
 
 Camera open, switch and dispose calls are serialized through one queue in `CardCameraView`, and
 the camera is suspended only on `paused`, not `inactive`, because the permission dialog triggers
 `inactive`. Both are fixes for real CameraX crashes; preserve them when editing that file.
+`test/card_camera_view_test.dart` guards both with a fake camera placed under the plugin
+(`CameraPlatform.instance`). Closing a camera waits for the real event loop, so those tests
+let it run with `tester.runAsync` between frames.
 
 The app is locked to portrait. `frame_prep.dart` rotates the sensor image upright and letterboxes
 it; detection boxes are in upright-frame pixels.

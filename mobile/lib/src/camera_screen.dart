@@ -8,11 +8,19 @@ import 'card_overlay.dart';
 import 'cards.dart';
 import 'frame_prep.dart';
 import 'overlay_panel.dart';
+import 'recognition.dart';
 import 'tts_speaker.dart';
 
 /// Reads every card held up to the camera aloud.
 class CameraRecognitionScreen extends StatefulWidget {
-  const CameraRecognitionScreen({super.key});
+  const CameraRecognitionScreen({
+    super.key,
+    required this.detector,
+    required this.config,
+  });
+
+  final CardDetector detector;
+  final ModelConfig config;
 
   @override
   State<CameraRecognitionScreen> createState() =>
@@ -22,7 +30,7 @@ class CameraRecognitionScreen extends StatefulWidget {
 class _CameraRecognitionScreenState extends State<CameraRecognitionScreen> {
   final GlobalKey<CardCameraViewState> _cameraView = GlobalKey();
   final TtsSpeaker _speaker = TtsSpeaker();
-  late CardAnnouncer _announcer;
+  late final CardAnnouncer _announcer;
 
   double _minConfidence = defaultMinConfidence;
   int? _latencyMs;
@@ -32,7 +40,10 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen> {
   @override
   void initState() {
     super.initState();
-    _announcer = CardAnnouncer(say: _onAnnounce);
+    _announcer = CardAnnouncer(
+      say: _onAnnounce,
+      spokenRanks: widget.config.spokenRanks,
+    );
   }
 
   void _onAnnounce(String phrase) {
@@ -42,13 +53,6 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen> {
       _lastSpokenPhrase = phrase;
       _lastSpokenColor = _announcer.announced?.color;
     });
-  }
-
-  void _onModelLoaded(ModelConfig config) {
-    _announcer = CardAnnouncer(
-      say: _onAnnounce,
-      spokenRanks: config.spokenRanks,
-    );
   }
 
   void _onCards(
@@ -63,7 +67,6 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen> {
   }
 
   void _switchCamera() {
-    _announcer.reset();
     unawaited(_cameraView.currentState?.switchCamera());
   }
 
@@ -97,8 +100,9 @@ class _CameraRecognitionScreenState extends State<CameraRecognitionScreen> {
         children: [
           CardCameraView(
             key: _cameraView,
+            detector: widget.detector,
+            config: widget.config,
             minConfidence: _minConfidence,
-            onModelLoaded: _onModelLoaded,
             onCards: _onCards,
           ),
           SafeArea(

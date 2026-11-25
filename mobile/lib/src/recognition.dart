@@ -8,7 +8,12 @@ const double fullViewFraction = 0.98;
 
 /// Interface for a UNO card rank detector.
 abstract interface class CardDetector {
-  Future<List<Detection>> detect(PreparedFrame frame);
+  /// Finds the cards in [frame]. Detections below [minConfidence] are left
+  /// out.
+  Future<List<Detection>> detect(
+    PreparedFrame frame, {
+    required double minConfidence,
+  });
 }
 
 /// Detects every card in [frame] and classifies its color.
@@ -17,9 +22,10 @@ abstract interface class CardDetector {
 Future<List<RecognizedCard>> recognizeCards(
   PreparedFrame frame,
   CardDetector detector,
-  ModelConfig config,
-) async {
-  final detections = await detector.detect(frame);
+  ModelConfig config, {
+  required double minConfidence,
+}) async {
+  final detections = await detector.detect(frame, minConfidence: minConfidence);
   return [
     for (final detection in detections)
       RecognizedCard(

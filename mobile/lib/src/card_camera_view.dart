@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 
 import 'card_overlay.dart';
 import 'cards.dart';
-import 'detector.dart';
 import 'frame_prep.dart';
 import 'recognition.dart';
 
@@ -14,15 +13,22 @@ const double defaultMinConfidence = 0.50;
 
 /// Live camera preview that recognizes the cards in view and outlines them.
 ///
-/// Owns the camera and the detector. Reports every recognized frame through
-/// [onCards], so the screen around it decides what to do with the cards.
+/// Owns the camera. Reports every recognized frame through [onCards], so the
+/// screen around it decides what to do with the cards.
 class CardCameraView extends StatefulWidget {
   const CardCameraView({
     super.key,
+    required this.detector,
+    required this.config,
     required this.onCards,
-    this.onModelLoaded,
     this.minConfidence = defaultMinConfidence,
   });
+
+  /// Finds the cards in every frame. It is not disposed by this view.
+  final CardDetector detector;
+
+  /// The ranks and input size of the model behind [detector].
+  final ModelConfig config;
 
   /// Called for every recognized frame with its cards and how long it took.
   final void Function(
@@ -31,9 +37,6 @@ class CardCameraView extends StatefulWidget {
     int latencyMs,
   )
   onCards;
-
-  /// Called when the detector is loaded, before the first frame.
-  final void Function(ModelConfig config)? onModelLoaded;
 
   /// Detections below this confidence are ignored.
   final double minConfidence;
@@ -44,8 +47,6 @@ class CardCameraView extends StatefulWidget {
 
 class CardCameraViewState extends State<CardCameraView>
     with WidgetsBindingObserver {
-  OnnxCardDetector? _detector;
-
   List<CameraDescription> _cameras = const [];
   int _selectedCameraIndex = 0;
   CameraController? _cameraController;
@@ -67,12 +68,6 @@ class CardCameraViewState extends State<CardCameraView>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unawaited(_bootstrap());
-  }
-
-  @override
-  void didUpdateWidget(CardCameraView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _detector?.minConfidence = widget.minConfidence;
   }
 
   /// Serializes camera open/switch/dispose calls so CameraX singleton state
@@ -150,14 +145,6 @@ class CardCameraViewState extends State<CardCameraView>
       });
 
       try {
-        final detector =
-            _detector ??
-            await OnnxCardDetector.fromAssets(
-              minConfidence: widget.minConfidence,
-            );
-        _detector = detector;
-        widget.onModelLoaded?.call(detector.config);
-
         final discovered = await availableCameras();
         if (discovered.isEmpty) {
           if (!mounted) return;
@@ -242,33 +229,29 @@ class CardCameraViewState extends State<CardCameraView>
   }
 
   void _onCameraFrame(CameraImage image) {
-    final detector = _detector;
     final controller = _cameraController;
-    if (_isProcessing || detector == null || controller == null || !mounted) {
+    if (_isProcessing || controller == null || !mounted) {
       return;
     }
 
     _isProcessing = true;
     final sensorOrientation = controller.description.sensorOrientation;
-    unawaited(_processFrame(image, detector, sensorOrientation));
+    unawaited(_processFrame(image, sensorOrientation));
   }
 
-  Future<void> _processFrame(
-    CameraImage image,
-    OnnxCardDetector detector,
-    int sensorOrientation,
-  ) async {
+  Future<void> _processFrame(CameraImage image, int sensorOrientation) async {
     final stopwatch = Stopwatch()..start();
     try {
       final prepared = await prepareCameraFrame(
         image,
         sensorOrientation: sensorOrientation,
-        inputSize: detector.config.inputSize,
+        inputSize: widget.config.inputSize,
       );
       final recognized = await recognizeCards(
         prepared,
-        detector,
-        detector.config,
+        widget.detector,
+        widget.config,
+        minConfidence: widget.minConfidence,
       );
       stopwatch.stop();
 
@@ -338,7 +321,6 @@ class CardCameraViewState extends State<CardCameraView>
     final controller = _cameraController;
     _cameraController = null;
     unawaited(_safeDisposeController(controller));
-    unawaited(_detector?.dispose());
     super.dispose();
   }
 
@@ -389,7 +371,7 @@ class CardCameraViewState extends State<CardCameraView>
             CircularProgressIndicator(color: Colors.white),
             SizedBox(height: 16),
             Text(
-              'Loading YOLO v0.1.0 model & camera...',
+              'Starting the camera...',
               style: TextStyle(color: Colors.white70),
             ),
           ],

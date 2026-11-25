@@ -14,7 +14,10 @@ class _FakeDetector implements CardDetector {
   final List<Detection> detections;
 
   @override
-  Future<List<Detection>> detect(PreparedFrame frame) async => detections;
+  Future<List<Detection>> detect(
+    PreparedFrame frame, {
+    required double minConfidence,
+  }) async => detections;
 }
 
 Uint8List _solidRgb(int width, int height, int r, int g, int b) {
@@ -485,7 +488,12 @@ void main() {
         ),
       ]);
 
-      final cards = await recognizeCards(frame, detector, config);
+      final cards = await recognizeCards(
+        frame,
+        detector,
+        config,
+        minConfidence: 0.5,
+      );
       expect(cards.map((c) => c.label).toList(), [
         'red 7',
         'blue skip',
@@ -518,6 +526,7 @@ void main() {
         frame,
         detector,
         ModelConfig.defaults(),
+        minConfidence: 0.5,
       );
 
       expect(cards.map((card) => card.isTooClose), [true, true, false]);

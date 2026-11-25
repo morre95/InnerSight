@@ -13,7 +13,6 @@ class OnnxCardDetector implements CardDetector {
   OnnxCardDetector._({
     required OrtSession session,
     required this.config,
-    required this.minConfidence,
     required this.iouThreshold,
   }) : _session = session,
        _inputName = session.inputNames.first,
@@ -22,7 +21,6 @@ class OnnxCardDetector implements CardDetector {
   static Future<OnnxCardDetector> fromAssets({
     String modelAsset = 'assets/models/own-cards.onnx',
     String configAsset = 'assets/models/model_config.json',
-    double minConfidence = 0.5,
     double iouThreshold = 0.45,
   }) async {
     final configJson = await rootBundle.loadString(configAsset);
@@ -49,7 +47,6 @@ class OnnxCardDetector implements CardDetector {
     return OnnxCardDetector._(
       session: session,
       config: config,
-      minConfidence: minConfidence,
       iouThreshold: iouThreshold,
     );
   }
@@ -87,12 +84,13 @@ class OnnxCardDetector implements CardDetector {
   final String _inputName;
   final String _outputName;
   final ModelConfig config;
-
-  double minConfidence;
   final double iouThreshold;
 
   @override
-  Future<List<Detection>> detect(PreparedFrame frame) async {
+  Future<List<Detection>> detect(
+    PreparedFrame frame, {
+    required double minConfidence,
+  }) async {
     final inputValue = await OrtValue.fromList(frame.inputTensor, [
       1,
       3,

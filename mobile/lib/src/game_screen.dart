@@ -9,6 +9,7 @@ import 'cards.dart';
 import 'frame_prep.dart';
 import 'guessing.dart';
 import 'overlay_panel.dart';
+import 'recognition.dart';
 import 'result_board.dart';
 import 'tts_speaker.dart';
 
@@ -29,9 +30,16 @@ GuessOutcome? swipeOutcome(Offset swipe) {
 
 /// The guessing game: swipe anywhere to answer, double-tap to lock in.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, required this.cardCount});
+  const GameScreen({
+    super.key,
+    required this.cardCount,
+    required this.detector,
+    required this.config,
+  });
 
   final int cardCount;
+  final CardDetector detector;
+  final ModelConfig config;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -41,8 +49,7 @@ class _GameScreenState extends State<GameScreen> {
   final GlobalKey<CardCameraViewState> _cameraView = GlobalKey();
   final TtsSpeaker _speaker = TtsSpeaker();
 
-  /// Starts when the detector is loaded, as its config holds the spoken ranks.
-  GuessingSession? _session;
+  late final GuessingSession _session;
   Offset _swipe = Offset.zero;
   bool _hasEndedEarly = false;
 
@@ -56,11 +63,13 @@ class _GameScreenState extends State<GameScreen> {
 
   void _say(String phrase) => unawaited(_speaker.say(phrase));
 
-  void _onModelLoaded(ModelConfig config) {
-    _session ??= GuessingSession(
+  @override
+  void initState() {
+    super.initState();
+    _session = GuessingSession(
       cardCount: widget.cardCount,
       say: _say,
-      spokenRanks: config.spokenRanks,
+      spokenRanks: widget.config.spokenRanks,
     );
   }
 
@@ -70,7 +79,7 @@ class _GameScreenState extends State<GameScreen> {
     int latencyMs,
   ) {
     setState(() {
-      final roundCard = _session?.observe(cards);
+      final roundCard = _session.observe(cards);
       if (roundCard != null) {
         _picture = cropCardPicture(frame, roundCard.detection.box);
       }
@@ -81,13 +90,13 @@ class _GameScreenState extends State<GameScreen> {
     final outcome = swipeOutcome(_swipe);
     if (outcome == null) return;
     setState(() {
-      _session?.giveAnswer(outcome);
+      _session.giveAnswer(outcome);
     });
   }
 
   void _lockIn() {
     setState(() {
-      final lockedRound = _session?.lockIn();
+      final lockedRound = _session.lockIn();
       if (lockedRound != null) {
         // A round is only locked after its card was read, so it has a picture.
         _pictures.add(_picture!);
@@ -96,8 +105,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _endEarly() {
-    final hasRounds = _session?.rounds.isNotEmpty ?? false;
-    if (!hasRounds) {
+    if (_session.rounds.isEmpty) {
       Navigator.of(context).pop();
       return;
     }
@@ -116,7 +124,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   Widget build(BuildContext context) {
     final session = _session;
-    if (session != null && (session.isFinished || _hasEndedEarly)) {
+    if (session.isFinished || _hasEndedEarly) {
       return Scaffold(
         body: ResultBoard(
           rounds: session.rounds,
@@ -142,7 +150,8 @@ class _GameScreenState extends State<GameScreen> {
             children: [
               CardCameraView(
                 key: _cameraView,
-                onModelLoaded: _onModelLoaded,
+                detector: widget.detector,
+                config: widget.config,
                 onCards: _onCards,
               ),
               SafeArea(
@@ -161,9 +170,9 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  Widget _buildRoundBanner(GuessingSession? session) {
-    final card = session?.card;
-    final roundNumber = (session?.rounds.length ?? 0) + 1;
+  Widget _buildRoundBanner(GuessingSession session) {
+    final card = session.card;
+    final roundNumber = session.rounds.length + 1;
     final cardText = card == null
         ? 'Hold up a card'
         : '${card.label} (${(card.detection.confidence * 100).round()}% sure)';
@@ -189,7 +198,7 @@ class _GameScreenState extends State<GameScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'Answer: ${session?.answer?.phrase ?? '-'}',
+                  'Answer: ${session.answer?.phrase ?? '-'}',
                   style: const TextStyle(color: Colors.white, fontSize: 15),
                 ),
               ],
