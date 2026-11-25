@@ -58,6 +58,13 @@ uv run --group export python scripts/export_mobile_model.py --weights weights/ow
 
 `fliplr=0.0` is deliberate: a mirrored digit is not a real card.
 
+Measuring the color reading on the recorded dataset (the file names hold the true colors); run
+it before and after any change to `color.py`:
+
+```bash
+uv run python scripts/measure_color_reading.py
+```
+
 ## Architecture
 
 ### Recognition pipeline (both implementations)

@@ -149,9 +149,17 @@ the same pictures of the cards.
 
 ## Calibrate the colors
 
-The hue ranges and thresholds in [color.py](src/innersight/color.py) are starting values. Warm
-indoor light pushes yellow toward red and green toward yellow, so adjust `HUE_RANGES` to your
-own deck, camera and lighting. A number or action card with no single dominant color is
+The hue ranges and thresholds in [color.py](src/innersight/color.py) are tuned for one webcam in
+a room lit mostly by a monitor, so adjust them to your own deck, camera and lighting. Measure
+how well the colors are read on the images you recorded with `innersight capture`, before and
+after a change:
+
+```bash
+uv run python scripts/measure_color_reading.py
+```
+
+It prints, for every true color, how many cards were read right and what the others were read
+as. A number or action card with no single dominant color is
 outlined in gray as `unknown` and is not announced until its color can be read, so hold it
 closer or in better light.
 

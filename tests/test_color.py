@@ -18,6 +18,10 @@ RED_HUE_BELOW_ZERO = 177
 YELLOW_HUE = 25
 GREEN_HUE = 65
 BLUE_HUE = 110
+# A webcam shows both a yellow and a green card in about this hue.
+OLIVE_HUE = 40
+# How much of the green and red light is left in the bluish light of a monitor.
+BLUISH_LIGHT_BGR = (1.0, 0.6, 0.6)
 
 
 def bgr_from_hue(hue: int, saturation: int = 220, value: int = 220) -> tuple[int, int, int]:
@@ -88,8 +92,28 @@ def test_ignores_white_glare_on_the_card() -> None:
 def test_ignores_background_at_the_edges_of_the_crop() -> None:
     crop = make_blank_card(bgr_from_hue(BLUE_HUE))
     cv2.rectangle(crop, (30, 45), (170, 255), bgr_from_hue(GREEN_HUE), cv2.FILLED)
+    cv2.ellipse(crop, CARD_CENTER, (70, 40), OVAL_TILT_DEGREES, 0, 360, WHITE, cv2.FILLED)
 
     assert classify_card_color(crop) is CardColor.GREEN
+
+
+def test_reads_a_red_card_in_bluish_light_that_tints_its_white_blue() -> None:
+    card = make_number_card(bgr_from_hue(RED_HUE))
+    tinted_card = (card * BLUISH_LIGHT_BGR).astype(np.uint8)
+
+    assert classify_card_color(tinted_card) is CardColor.RED
+
+
+@pytest.mark.parametrize(
+    ("value", "expected_color"),
+    [(220, CardColor.YELLOW), (110, CardColor.GREEN)],
+)
+def test_tells_yellow_from_green_by_brightness_where_their_hues_meet(
+    value: int, expected_color: CardColor
+) -> None:
+    card = make_number_card(bgr_from_hue(OLIVE_HUE, value=value))
+
+    assert classify_card_color(card) is expected_color
 
 
 def test_returns_unknown_for_a_crop_split_between_four_colors() -> None:
