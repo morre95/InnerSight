@@ -1,6 +1,7 @@
 """Decide when a card held up to the camera is announced, and how its name is spoken."""
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 from innersight.cards import Card, CardColor, CardFace
 
@@ -73,21 +74,39 @@ class SettlingValue[Value]:
         return True
 
 
-class SettledCardWatcher:
-    """Reports a card once when it settles in view, and again only after a change."""
+@dataclass(frozen=True)
+class CardSighting:
+    """What a CardWatcher makes of one frame."""
+
+    settled_card: Card | None
+    """The card that settled in view in this frame, or None in every other frame."""
+
+    is_too_close_warning_due: bool
+    """True in the frame a card has settled too close to the camera."""
+
+
+class CardWatcher:
+    """Follows the card held up to the camera from frame to frame.
+
+    It reports a card once when it settles in view, and again only after a change. It tells
+    once when a card is held too close to the camera, and again only after it was not.
+    """
 
     def __init__(self) -> None:
         self._face = SettlingValue[CardFace | None](None)
+        self._is_too_close = SettlingValue(False)
 
     @property
     def settled(self) -> CardFace | None:
         """The card that last settled in view, or None when no card is in view."""
         return self._face.settled
 
-    def observe(self, cards: Sequence[Card]) -> Card | None:
-        """Take in the cards recognized in one frame. With several, the surest one counts.
+    def observe(self, cards: Sequence[Card]) -> CardSighting:
+        """Take in the cards recognized in one frame. With several, the surest one counts."""
+        return CardSighting(self._settle_card(cards), self._settle_too_close(cards))
 
-        Returns the card on the frame it settles in view, and None on every other frame.
+    def _settle_card(self, cards: Sequence[Card]) -> Card | None:
+        """Return the card on the frame it settles in view, and None on every other frame.
 
         A card whose color could not be read is not a card that exists, such as "unknown 5".
         A frame that shows only such cards is left out, so the card is read again in the
@@ -100,17 +119,11 @@ class SettledCardWatcher:
         has_settled = self._face.observe(card.face if card else None)
         return card if has_settled else None
 
+    def _settle_too_close(self, cards: Sequence[Card]) -> bool:
+        """Return True on the frame the card has settled too close, and False on every other.
 
-class TooCloseWatcher:
-    """Tells once when a card is held too close to the camera, and again only after it was not."""
-
-    def __init__(self) -> None:
-        self._is_too_close = SettlingValue(False)
-
-    def observe(self, cards: Sequence[Card]) -> bool:
-        """Take in the cards recognized in one frame. With several, the surest one counts.
-
-        Returns True on the frame the card has settled too close, and False on every other.
+        A card too close is often one whose color cannot be read, and it needs the warning
+        all the same. So here the surest of all the cards counts, readable or not.
         """
         card = max(cards, key=_confidence, default=None)
         is_too_close = card is not None and card.is_too_close
@@ -134,17 +147,16 @@ class CardAnnouncer:
 
     def __init__(self, say: Callable[[str], None]) -> None:
         self._say = say
-        self._watcher = SettledCardWatcher()
-        self._too_close_watcher = TooCloseWatcher()
+        self._watcher = CardWatcher()
 
     def observe(self, cards: Sequence[Card]) -> None:
         """Take in the cards recognized in one frame. With several, the surest one counts."""
-        card = self._watcher.observe(cards)
-        if self._too_close_watcher.observe(cards):
+        sighting = self._watcher.observe(cards)
+        if sighting.is_too_close_warning_due:
             face = self._watcher.settled
             self._say(with_too_close_warning(spoken_name(face) if face else None))
-        elif card is not None:
-            self._say(spoken_name(card.face))
+        elif sighting.settled_card is not None:
+            self._say(spoken_name(sighting.settled_card.face))
 
 
 def _confidence(card: Card) -> float:

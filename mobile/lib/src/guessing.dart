@@ -63,8 +63,7 @@ class GuessingSession {
   final Map<String, String> spokenRanks;
   final DateTime Function() _now;
 
-  final SettledCardWatcher _watcher = SettledCardWatcher();
-  final TooCloseWatcher _tooCloseWatcher = TooCloseWatcher();
+  final CardWatcher _watcher = CardWatcher();
   final List<GuessRound> _rounds = [];
   RecognizedCard? _card;
   DateTime? _roundStartedAt;
@@ -93,13 +92,12 @@ class GuessingSession {
   /// A card held too close to the camera is still read, and the player is
   /// told to move it.
   RecognizedCard? observe(List<RecognizedCard> cards) {
-    final settledCard = _watcher.observe(cards);
-    final isWarningDue = _tooCloseWatcher.observe(cards);
+    final sighting = _watcher.observe(cards);
     if (isFinished) {
       return null;
     }
-    var (roundCard, phrase) = _takeIn(settledCard);
-    if (isWarningDue) {
+    var (roundCard, phrase) = _takeIn(sighting.settledCard);
+    if (sighting.isTooCloseWarningDue) {
       // Without a new name to say, the name of the card being played is said
       // again.
       final card = _card;

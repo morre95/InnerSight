@@ -63,24 +63,43 @@ RecognizedCard? _surest(Iterable<RecognizedCard> cards) {
   return best;
 }
 
-/// Reports a card once when it settles in view, and again only after a change.
+/// What a [CardWatcher] makes of one frame: the card that settled in view in
+/// this frame, or null in every other frame, and whether a card has settled
+/// too close to the camera in this frame.
+typedef CardSighting = ({
+  RecognizedCard? settledCard,
+  bool isTooCloseWarningDue,
+});
+
+/// Follows the card held up to the camera from frame to frame.
 ///
-/// Direct port of `SettledCardWatcher` in `src/innersight/announcement.py`.
-class SettledCardWatcher {
+/// It reports a card once when it settles in view, and again only after a
+/// change. It tells once when a card is held too close to the camera, and
+/// again only after it was not.
+///
+/// Direct port of `CardWatcher` in `src/innersight/announcement.py`.
+class CardWatcher {
   final SettlingValue<CardFace?> _face = SettlingValue(null);
+  final SettlingValue<bool> _isTooClose = SettlingValue(false);
 
   /// The face that last settled in view, or null when no card is in view.
   CardFace? get settled => _face.settled;
 
   /// Takes in the cards of one frame. With several, the surest one counts.
-  ///
+  CardSighting observe(List<RecognizedCard> cards) {
+    return (
+      settledCard: _settleCard(cards),
+      isTooCloseWarningDue: _settleTooClose(cards),
+    );
+  }
+
   /// Returns the card on the frame it settles in view, and null otherwise.
   ///
   /// A card whose color could not be read is not a card that exists, such as
   /// "unknown 5". A frame that shows only such cards is left out, so the card
   /// is read again in the next frame, and neither settles under a wrong name
   /// nor counts as taken away.
-  RecognizedCard? observe(List<RecognizedCard> cards) {
+  RecognizedCard? _settleCard(List<RecognizedCard> cards) {
     final card = _surest(
       cards.where((card) => card.color != CardColor.unknown),
     );
@@ -90,25 +109,20 @@ class SettledCardWatcher {
     return _face.observe(card?.face) ? card : null;
   }
 
-  void reset() => _face.reset();
-}
-
-/// Tells once when a card is held too close to the camera, and again only
-/// after it was not.
-///
-/// Direct port of `TooCloseWatcher` in `src/innersight/announcement.py`.
-class TooCloseWatcher {
-  final SettlingValue<bool> _isTooClose = SettlingValue(false);
-
-  /// Takes in the cards of one frame. With several, the surest one counts.
-  ///
   /// Returns true on the frame the card has settled too close.
-  bool observe(List<RecognizedCard> cards) {
+  ///
+  /// A card too close is often one whose color cannot be read, and it needs
+  /// the warning all the same. So here the surest of all the cards counts,
+  /// readable or not.
+  bool _settleTooClose(List<RecognizedCard> cards) {
     final isTooClose = _surest(cards)?.isTooClose ?? false;
     return _isTooClose.observe(isTooClose) && isTooClose;
   }
 
-  void reset() => _isTooClose.reset();
+  void reset() {
+    _face.reset();
+    _isTooClose.reset();
+  }
 }
 
 /// Adds the warning that the card is too close to what is said, if anything.
@@ -129,14 +143,14 @@ class CardAnnouncer {
 
   final void Function(String phrase) say;
   final Map<String, String> spokenRanks;
-  final SettledCardWatcher _watcher = SettledCardWatcher();
-  final TooCloseWatcher _tooCloseWatcher = TooCloseWatcher();
+  final CardWatcher _watcher = CardWatcher();
 
   CardFace? get announced => _watcher.settled;
 
   void observe(List<RecognizedCard> cards) {
-    final card = _watcher.observe(cards);
-    if (_tooCloseWatcher.observe(cards)) {
+    final sighting = _watcher.observe(cards);
+    final card = sighting.settledCard;
+    if (sighting.isTooCloseWarningDue) {
       final face = _watcher.settled;
       say(
         withTooCloseWarning(
@@ -148,8 +162,5 @@ class CardAnnouncer {
     }
   }
 
-  void reset() {
-    _watcher.reset();
-    _tooCloseWatcher.reset();
-  }
+  void reset() => _watcher.reset();
 }

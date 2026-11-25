@@ -7,8 +7,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from innersight.announcement import (
-    SettledCardWatcher,
-    TooCloseWatcher,
+    CardWatcher,
     spoken_name,
     with_too_close_warning,
 )
@@ -63,8 +62,7 @@ class GuessingSession:
         self.card_count = card_count
         self._say = say
         self._clock = clock
-        self._watcher = SettledCardWatcher()
-        self._too_close_watcher = TooCloseWatcher()
+        self._watcher = CardWatcher()
         self._card: Card | None = None
         self._round_started_at = 0.0
         self._answer: GuessOutcome | None = None
@@ -100,12 +98,11 @@ class GuessingSession:
 
         A card held too close to the camera is still read, and the player is told to move it.
         """
-        settled_card = self._watcher.observe(cards)
-        is_warning_due = self._too_close_watcher.observe(cards)
+        sighting = self._watcher.observe(cards)
         if self.is_finished:
             return None
-        round_card, phrase = self._take_in(settled_card)
-        if is_warning_due:
+        round_card, phrase = self._take_in(sighting.settled_card)
+        if sighting.is_too_close_warning_due:
             # Without a new name to say, the name of the card being played is said again.
             name = spoken_name(self._card.face) if self._card else None
             phrase = with_too_close_warning(phrase or name)
