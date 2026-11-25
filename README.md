@@ -25,7 +25,7 @@ uv run innersight capture
 To add a second dataset:
 
 ```bash
- uv run innersight capture --index 1 --dataset datasets/phone-cards
+uv run innersight capture --index 1 --dataset datasets/phone-cards
 ```
 
 The tool walks through all 57 card designs, the back of a card and one step without a card. The
