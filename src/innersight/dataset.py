@@ -88,6 +88,31 @@ class CardDataset:
         return self._directory / split / "labels" / f"{name}.txt"
 
 
+def turn_upside_down(
+    frame_bgr: np.ndarray, cards: Sequence[LabeledCard]
+) -> tuple[np.ndarray, list[LabeledCard]]:
+    """Turn a labeled frame half a turn, as if every card in it were held upside down.
+
+    A card that is turned keeps its rank, so a turned frame is a true example of it. The
+    detector needs such examples of a 6 and a 9, to learn that the line under the digit tells
+    them apart, and not the shape of the digit.
+    """
+    frame_height, frame_width = frame_bgr.shape[:2]
+    turned_cards = [
+        LabeledCard(
+            card.rank,
+            Box(
+                x1=frame_width - card.box.x2,
+                y1=frame_height - card.box.y2,
+                x2=frame_width - card.box.x1,
+                y2=frame_height - card.box.y1,
+            ),
+        )
+        for card in cards
+    ]
+    return cv2.rotate(frame_bgr, cv2.ROTATE_180), turned_cards
+
+
 def _format_label_line(card: LabeledCard, frame_width: int, frame_height: int) -> str:
     """YOLO label: class id, then box center and size as fractions of the frame."""
     box = card.box

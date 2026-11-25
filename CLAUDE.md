@@ -51,12 +51,16 @@ Format only the files you edit.
 Training and exporting the model:
 
 ```bash
-uv run yolo detect train data=datasets/own-cards/data.yaml model=yolo26n.pt epochs=100 imgsz=640 fliplr=0.0 degrees=15.0
+uv run python scripts/add_upside_down_images.py   # datasets/own-cards-both-ways
+uv run yolo detect train data=datasets/own-cards-both-ways/data.yaml model=yolo26s.pt epochs=100 imgsz=640 fliplr=0.0 degrees=15.0
 mkdir -p weights && cp runs/detect/train/weights/best.pt weights/own-cards.pt
 uv run --group export python scripts/export_mobile_model.py --weights weights/own-cards.pt
 ```
 
-`fliplr=0.0` is deliberate: a mirrored digit is not a real card.
+`fliplr=0.0` is deliberate: a mirrored digit is not a real card. Training on the copy with
+every image also turned upside down is deliberate too: without it the detector reads an
+upside-down 9 as a 6. Compare old and new weights with
+`uv run python scripts/measure_rank_reading.py --weights <file>` before replacing them.
 
 Measuring the color reading on the recorded dataset (the file names hold the true colors); run
 it before and after any change to `color.py`:

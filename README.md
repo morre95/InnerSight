@@ -64,9 +64,17 @@ early loses nothing.
 ## Train the detector
 
 ```bash
-uv run yolo detect train data=datasets/own-cards/data.yaml model=yolo26n.pt epochs=100 imgsz=640 fliplr=0.0 degrees=15.0
+uv run python scripts/add_upside_down_images.py
+uv run yolo detect train data=datasets/own-cards-both-ways/data.yaml model=yolo26s.pt epochs=100 imgsz=640 fliplr=0.0 degrees=15.0
 ```
 
+- The first command makes `datasets/own-cards-both-ways`, a copy of the recorded dataset with
+  every image in it twice: as recorded and turned upside down. Cards are recorded the right way
+  up, and a detector that has seen only those tells a 6 from a 9 by the shape of the digit, so
+  it reads an upside-down 9 as a 6. With the turned images it has to look at the line under the
+  digit. Run it again after recording or re-capturing images.
+- `model=yolo26s.pt` is the small model, one size above the smallest. Reading cards both ways
+  up is harder to learn, and the smallest model, `yolo26n.pt`, became unsure of some cards.
 - `fliplr=0.0` turns off mirroring, because a mirrored digit is not a real card.
 - `degrees=15.0` rotates the training images, because the outline is always upright but real
   cards are held at an angle.
@@ -78,9 +86,24 @@ you are happy with them, copy them to where InnerSight looks by default:
 mkdir -p weights && cp runs/detect/train/weights/best.pt weights/own-cards.pt
 ```
 
-Add the wheights to flutter app:
+The phone app has its own weights. Its camera shows the cards differently from a webcam, so
+its detector is trained on images from both, and with the smallest model, which a phone runs
+fast enough. `datasets/all-cards-both-ways.yaml` lists the train and validation image
+directories of both datasets:
+
 ```bash
-uv run python scripts/export_mobile_model.py --weights weights/own-cards.pt
+uv run python scripts/add_upside_down_images.py --dataset datasets/phone-cards --output datasets/phone-cards-both-ways
+uv run yolo detect train data=datasets/all-cards-both-ways.yaml model=yolo26n.pt epochs=100 imgsz=640 fliplr=0.0 degrees=15.0
+cp runs/detect/train/weights/best.pt weights/phone-cards.pt
+uv run --group export python scripts/export_mobile_model.py --weights weights/phone-cards.pt
+```
+
+Before replacing weights, compare the old and the new on the validation images, the right way
+up and upside down:
+
+```bash
+uv run python scripts/measure_rank_reading.py --weights weights/own-cards.pt
+uv run python scripts/measure_rank_reading.py --weights weights/phone-cards.pt --dataset datasets/phone-cards
 ```
 
 `*.pt` files are ignored by git, so the weights stay on this machine. To try other weights

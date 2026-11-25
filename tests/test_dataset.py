@@ -6,7 +6,7 @@ import pytest
 import yaml
 
 from innersight.cards import RANKS, Box
-from innersight.dataset import TRAIN_SPLIT, CardDataset, LabeledCard
+from innersight.dataset import TRAIN_SPLIT, CardDataset, LabeledCard, turn_upside_down
 from innersight.errors import DatasetReadError, DatasetWriteError
 
 FRAME_HEIGHT = 100
@@ -92,3 +92,16 @@ def test_reads_back_the_frame_it_wrote(tmp_path: Path) -> None:
 def test_raises_dataset_read_error_for_an_example_that_does_not_exist(tmp_path: Path) -> None:
     with pytest.raises(DatasetReadError):
         CardDataset(tmp_path).read_example(TRAIN_SPLIT, "missing")
+
+
+def test_turns_a_frame_upside_down_with_the_card_still_labeled_where_it_is() -> None:
+    white = 255
+    card_in_the_top_left = LabeledCard(rank="6", box=Box(10, 5, 60, 45))
+    frame = make_frame()
+    frame[5:45, 10:60] = white
+
+    turned_frame, turned_cards = turn_upside_down(frame, [card_in_the_top_left])
+
+    assert turned_cards == [LabeledCard(rank="6", box=Box(140, 55, 190, 95))]
+    assert (turned_frame[55:95, 140:190] == white).all()
+    assert turned_frame.sum() == frame.sum()
