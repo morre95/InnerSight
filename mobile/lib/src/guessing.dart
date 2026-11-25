@@ -7,6 +7,14 @@ const String lastCardPhrase = 'Locked in. Last card';
 const String noCardPhrase = 'Hold up a card first';
 const String noAnswerPhrase = 'Answer first';
 
+/// Said before the name of the card when the reading of a round is corrected.
+const String correctionPhrase = 'Correction';
+
+/// How long after a card is first read a surer reading may still replace it.
+/// After that, another card in view is taken for the next card held up too
+/// early, and is ignored.
+const Duration correctionTime = Duration(seconds: 5);
+
 /// How a guess turned out. [phrase] is what the voice says for it.
 enum GuessOutcome {
   bothRight('both right'),
@@ -38,22 +46,27 @@ class GuessRound {
 /// A round starts when a card settles in view and is read aloud. The player
 /// then answers as often as they like; the last answer counts once they lock
 /// it in. Direct port of `GuessingSession` in `src/innersight/guessing.py`.
+///
+/// [now] gives the current time; it is the clock of the device by default.
 class GuessingSession {
   GuessingSession({
     required this.cardCount,
     required this.say,
     this.spokenRanks = defaultSpokenRanks,
-  }) {
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now {
     say(firstCardPhrase);
   }
 
   final int cardCount;
   final void Function(String phrase) say;
   final Map<String, String> spokenRanks;
+  final DateTime Function() _now;
 
   final SettledCardWatcher _watcher = SettledCardWatcher();
   final List<GuessRound> _rounds = [];
   RecognizedCard? _card;
+  DateTime? _roundStartedAt;
   GuessOutcome? _answer;
 
   /// The rounds that are locked in, in the order they were played.
@@ -67,22 +80,55 @@ class GuessingSession {
 
   bool get isFinished => _rounds.length == cardCount;
 
-  /// Takes in the cards recognized in one frame; returns the card that starts
-  /// a round.
+  /// Takes in the cards recognized in one frame; returns the card of the
+  /// round if it changed.
   ///
   /// A card that settles in view while no round is being played starts the
-  /// next round. The back of a card is read aloud but starts no round. On
-  /// every frame that starts no round, null is returned.
+  /// next round. The back of a card is read aloud but starts no round. While
+  /// a round is being played, a surer reading may correct its card for a
+  /// short time. On every frame that neither starts a round nor corrects its
+  /// card, null is returned.
   RecognizedCard? observe(List<RecognizedCard> cards) {
     final settledCard = _watcher.observe(cards);
-    if (settledCard == null || _card != null || isFinished) {
+    if (settledCard == null || isFinished) {
       return null;
+    }
+    final card = _card;
+    if (card != null) {
+      return _correctCard(card, settledCard);
     }
     say(spokenName(settledCard.face, spokenRanks: spokenRanks));
     if (settledCard.color == CardColor.back) {
       return null;
     }
     _card = settledCard;
+    _roundStartedAt = _now();
+    return settledCard;
+  }
+
+  /// Replaces the card of the round with another reading that the model is
+  /// surer of.
+  ///
+  /// A card misread at a distance is often read right once it is held closer.
+  /// The answer given so far is dropped, as it was an answer to the card that
+  /// was read first. Returns the new card of the round, or null if the
+  /// reading is not taken.
+  RecognizedCard? _correctCard(
+    RecognizedCard card,
+    RecognizedCard settledCard,
+  ) {
+    final isOtherCard =
+        settledCard.face != card.face && settledCard.color != CardColor.back;
+    final isSurer =
+        settledCard.detection.confidence > card.detection.confidence;
+    final isInTime = _now().difference(_roundStartedAt!) <= correctionTime;
+    if (!(isOtherCard && isSurer && isInTime)) {
+      return null;
+    }
+    final name = spokenName(settledCard.face, spokenRanks: spokenRanks);
+    say('$correctionPhrase. $name');
+    _card = settledCard;
+    _answer = null;
     return settledCard;
   }
 

@@ -1,5 +1,6 @@
 """The guessing game: guess the card you hold while blindfolded, then score your own guess."""
 
+import time
 from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -13,6 +14,12 @@ NEXT_CARD_PHRASE = "Locked in. Next card"
 LAST_CARD_PHRASE = "Locked in. Last card"
 NO_CARD_PHRASE = "Hold up a card first"
 NO_ANSWER_PHRASE = "Answer first"
+# Said before the name of the card when the reading of a round is corrected.
+CORRECTION_PHRASE = "Correction"
+
+# How long after a card is first read a surer reading may still replace it. After that, another
+# card in view is taken for the next card held up too early, and is ignored.
+CORRECTION_SECONDS = 5.0
 
 
 class GuessOutcome(StrEnum):
@@ -38,13 +45,22 @@ class GuessingSession:
 
     A round starts when a card settles in view and is read aloud. The player then answers as
     often as they like; the last answer counts once they lock it in.
+
+    `clock` gives the time in seconds; only the difference between two readings is used.
     """
 
-    def __init__(self, card_count: int, say: Callable[[str], None]) -> None:
+    def __init__(
+        self,
+        card_count: int,
+        say: Callable[[str], None],
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         self.card_count = card_count
         self._say = say
+        self._clock = clock
         self._watcher = SettledCardWatcher()
         self._card: Card | None = None
+        self._round_started_at = 0.0
         self._answer: GuessOutcome | None = None
         self._rounds: list[GuessRound] = []
         say(FIRST_CARD_PHRASE)
@@ -69,19 +85,40 @@ class GuessingSession:
         return len(self._rounds) == self.card_count
 
     def observe(self, cards: Sequence[Card]) -> Card | None:
-        """Take in the cards recognized in one frame; return the card that starts a round.
+        """Take in the cards recognized in one frame; return the card of the round if it changed.
 
         A card that settles in view while no round is being played starts the next round.
         The back of a card is read aloud but starts no round, as there is nothing to guess.
-        On every frame that starts no round, None is returned.
+        While a round is being played, a surer reading may correct its card for a short time.
+        On every frame that neither starts a round nor corrects its card, None is returned.
         """
         settled_card = self._watcher.observe(cards)
-        if settled_card is None or self._card is not None or self.is_finished:
+        if settled_card is None or self.is_finished:
             return None
+        if self._card is not None:
+            return self._correct_card(self._card, settled_card)
         self._say(spoken_name(settled_card.face))
         if settled_card.face == CARD_BACK:
             return None
         self._card = settled_card
+        self._round_started_at = self._clock()
+        return settled_card
+
+    def _correct_card(self, card: Card, settled_card: Card) -> Card | None:
+        """Replace the card of the round with another reading that the model is surer of.
+
+        A card misread at a distance is often read right once it is held closer. The answer
+        given so far is dropped, as it was an answer to the card that was read first.
+        Returns the new card of the round, or None if the reading is not taken.
+        """
+        is_other_card = settled_card.face not in (card.face, CARD_BACK)
+        is_surer = settled_card.detection.confidence > card.detection.confidence
+        is_in_time = self._clock() - self._round_started_at <= CORRECTION_SECONDS
+        if not (is_other_card and is_surer and is_in_time):
+            return None
+        self._say(f"{CORRECTION_PHRASE}. {spoken_name(settled_card.face)}")
+        self._card = settled_card
+        self._answer = None
         return settled_card
 
     def give_answer(self, outcome: GuessOutcome) -> None:

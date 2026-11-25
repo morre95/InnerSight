@@ -39,8 +39,8 @@ def play_guessing_game(
     """Play until the session is finished or the player quits; log every round as it ends.
 
     `show` displays a preview frame and returns the full code of the key pressed in it.
-    Returns a picture of the card of every locked round, cut from the frame it was read in,
-    so the player can check afterwards what the model read.
+    Returns a picture of the card of every locked round, cut from the frame it was last read
+    in, so the player can check afterwards what the model read.
     """
     pictures: list[np.ndarray] = []
     picture = None

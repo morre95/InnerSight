@@ -95,17 +95,21 @@ spoken names) should be changed on both sides in the same change, with the match
 
 `GuessingSession` (`guessing.py` / `guessing.dart`) is the whole game as a state machine with an
 injected `say` callback and no I/O. A round starts when a card settles in view; the player gives
-any number of answers, the last one counts when they lock in. While a round is open, other cards
-that come into view are ignored, and the back of a card is spoken but starts no round. The player
-is blindfolded, so every state change must be spoken.
+any number of answers, the last one counts when they lock in. While a round is open, another
+reading replaces its card only if it settles within `CORRECTION_SECONDS` of the first reading
+and the detector is surer of it; that drops the answer given so far. Otherwise other cards that
+come into view are ignored. The back of a card is spoken but starts no round. The session takes
+its clock as a parameter, so tests control the time. The player is blindfolded, so every state
+change must be spoken.
 
 The input layers are thin: `game.py` maps arrow keys and `SPACE` to the session and appends each
 locked round to a CSV through `GuessLog`; `game_screen.dart` maps swipes (`swipeOutcome`) and a
 double-tap. The phone has no file log; its result board shows the same data.
 
-The session holds no images. `observe` returns the card that starts a round; the input layer
-crops that card from the frame and keeps one picture for every locked round, which the result
-board shows beside the round. The pictures are kept in memory only.
+The session holds no images. `observe` returns the card of the round when it starts or is
+corrected; the input layer crops that card from the frame and keeps one picture for every
+locked round, which the result board shows beside the round. The pictures are kept in memory
+only.
 
 ### Python conventions that are easy to miss
 

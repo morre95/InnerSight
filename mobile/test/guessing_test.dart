@@ -27,6 +27,7 @@ RecognizedCard _makeCard(
 
 final _redSeven = _makeCard(CardColor.red, '7', confidence: 0.8);
 final _blueSkip = _makeCard(CardColor.blue, 'skip');
+final _unsureGreenTwo = _makeCard(CardColor.green, '2', confidence: 0.6);
 final _cardBack = _makeCard(CardColor.back, 'back');
 
 /// Takes the last card away and holds up [card] until it settles.
@@ -54,14 +55,24 @@ void _playRound(
 void main() {
   late List<String> spoken;
 
+  /// The time of a clock that stands still until a test moves it.
+  late DateTime now;
+
   /// Starts a session and forgets the greeting.
   GuessingSession startSession({int cardCount = 2}) {
-    final session = GuessingSession(cardCount: cardCount, say: spoken.add);
+    final session = GuessingSession(
+      cardCount: cardCount,
+      say: spoken.add,
+      now: () => now,
+    );
     spoken.clear();
     return session;
   }
 
-  setUp(() => spoken = []);
+  setUp(() {
+    spoken = [];
+    now = DateTime(2026, 11, 25);
+  });
 
   group('GuessingSession', () {
     test('asks for the first card when the session starts', () {
@@ -168,11 +179,74 @@ void main() {
       expect(roundCard, isNull);
     });
 
-    test('keeps the card of the round when another card comes into view', () {
+    test('corrects the card of the round when a surer reading settles', () {
       final session = startSession();
       _holdUp(session, _redSeven);
 
       _holdUp(session, _blueSkip);
+
+      expect(session.card, _blueSkip);
+      expect(spoken, ['red seven', 'Correction. blue skip']);
+    });
+
+    test('reports the corrected card on the frame it settles', () {
+      final session = startSession();
+      _holdUp(session, _redSeven);
+      for (var i = 0; i < stableFrameCount - 1; i++) {
+        session.observe([_blueSkip]);
+      }
+
+      final roundCard = session.observe([_blueSkip]);
+
+      expect(roundCard, _blueSkip);
+    });
+
+    test('drops the answer given to a card that is corrected', () {
+      final session = startSession();
+      _holdUp(session, _redSeven);
+      session.giveAnswer(GuessOutcome.bothRight);
+
+      _holdUp(session, _blueSkip);
+
+      expect(session.answer, isNull);
+    });
+
+    test('keeps the card of the round when the other reading is less sure', () {
+      final session = startSession();
+      _holdUp(session, _redSeven);
+
+      _holdUp(session, _unsureGreenTwo);
+
+      expect(session.card, _redSeven);
+      expect(spoken, ['red seven']);
+    });
+
+    test('corrects the card until the time for corrections is up', () {
+      final session = startSession();
+      _holdUp(session, _redSeven);
+
+      now = now.add(correctionTime);
+      _holdUp(session, _blueSkip);
+
+      expect(session.card, _blueSkip);
+    });
+
+    test('keeps the card of the round once the time for corrections is up', () {
+      final session = startSession();
+      _holdUp(session, _redSeven);
+
+      now = now.add(correctionTime + const Duration(milliseconds: 100));
+      _holdUp(session, _blueSkip);
+
+      expect(session.card, _redSeven);
+      expect(spoken, ['red seven']);
+    });
+
+    test('does not correct a card to the back of a card', () {
+      final session = startSession();
+      _holdUp(session, _redSeven);
+
+      _holdUp(session, _cardBack);
 
       expect(session.card, _redSeven);
       expect(spoken, ['red seven']);

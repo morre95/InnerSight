@@ -46,7 +46,8 @@ class _GameScreenState extends State<GameScreen> {
   Offset _swipe = Offset.zero;
   bool _hasEndedEarly = false;
 
-  /// The card of the round being played, cut from the frame it was read in.
+  /// The card of the round being played, cut from the frame it was last read
+  /// in.
   CardPicture? _picture;
 
   /// The card of every locked round, so the player can check afterwards what

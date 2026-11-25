@@ -122,7 +122,9 @@ uv run innersight game --cards 10
 `--cards` is how many cards the session has. Everything is spoken, so you can play without
 seeing the screen:
 
-1. Guess, then hold the card up to the camera. The voice reads it.
+1. Guess, then hold the card up to the camera. The voice reads it. If the detector reads
+   another card and is surer of it within 5 seconds, for instance when you hold the card
+   closer, the voice says "Correction" and the new card, and you answer again.
 2. Answer with the arrow keys. The voice says what each key means, so you can press several;
    the last one counts.
 

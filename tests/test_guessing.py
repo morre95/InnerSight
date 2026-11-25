@@ -1,6 +1,7 @@
 from innersight.announcement import STABLE_FRAME_COUNT
 from innersight.cards import BACK_RANK, Box, Card, CardColor, Detection
 from innersight.guessing import (
+    CORRECTION_SECONDS,
     FIRST_CARD_PHRASE,
     LAST_CARD_PHRASE,
     NEXT_CARD_PHRASE,
@@ -21,13 +22,26 @@ def make_card(color: CardColor, rank: str, confidence: float = 0.9) -> Card:
 
 RED_SEVEN = make_card(CardColor.RED, "7", confidence=0.8)
 BLUE_SKIP = make_card(CardColor.BLUE, "skip")
+UNSURE_GREEN_TWO = make_card(CardColor.GREEN, "2", confidence=0.6)
 CARD_BACK = make_card(CardColor.BACK, BACK_RANK)
 
 
-def start_session(card_count: int = 2) -> tuple[GuessingSession, list[str]]:
+class FakeClock:
+    """A clock that stands still until a test moves it."""
+
+    def __init__(self) -> None:
+        self.seconds = 0.0
+
+    def __call__(self) -> float:
+        return self.seconds
+
+
+def start_session(
+    card_count: int = 2, clock: FakeClock | None = None
+) -> tuple[GuessingSession, list[str]]:
     """Start a session and forget the greeting, so a test sees only what it causes."""
     spoken: list[str] = []
-    session = GuessingSession(card_count, spoken.append)
+    session = GuessingSession(card_count, spoken.append, clock or FakeClock())
     spoken.clear()
     return session, spoken
 
@@ -148,11 +162,75 @@ def test_reports_the_card_that_starts_a_round_on_the_frame_it_settles() -> None:
     assert round_card == RED_SEVEN
 
 
-def test_keeps_the_card_of_the_round_when_another_card_comes_into_view() -> None:
+def test_corrects_the_card_of_the_round_when_a_surer_reading_settles() -> None:
     session, spoken = start_session()
     hold_up(session, RED_SEVEN)
 
     hold_up(session, BLUE_SKIP)
+
+    assert session.card == BLUE_SKIP
+    assert spoken == ["red seven", "Correction. blue skip"]
+
+
+def test_reports_the_corrected_card_on_the_frame_it_settles() -> None:
+    session, _ = start_session()
+    hold_up(session, RED_SEVEN)
+    for _ in range(STABLE_FRAME_COUNT - 1):
+        session.observe([BLUE_SKIP])
+
+    round_card = session.observe([BLUE_SKIP])
+
+    assert round_card == BLUE_SKIP
+
+
+def test_drops_the_answer_given_to_a_card_that_is_corrected() -> None:
+    session, _ = start_session()
+    hold_up(session, RED_SEVEN)
+    session.give_answer(GuessOutcome.BOTH_RIGHT)
+
+    hold_up(session, BLUE_SKIP)
+
+    assert session.answer is None
+
+
+def test_keeps_the_card_of_the_round_when_the_other_reading_is_less_sure() -> None:
+    session, spoken = start_session()
+    hold_up(session, RED_SEVEN)
+
+    hold_up(session, UNSURE_GREEN_TWO)
+
+    assert session.card == RED_SEVEN
+    assert spoken == ["red seven"]
+
+
+def test_corrects_the_card_until_the_time_for_corrections_is_up() -> None:
+    clock = FakeClock()
+    session, _ = start_session(clock=clock)
+    hold_up(session, RED_SEVEN)
+
+    clock.seconds += CORRECTION_SECONDS
+    hold_up(session, BLUE_SKIP)
+
+    assert session.card == BLUE_SKIP
+
+
+def test_keeps_the_card_of_the_round_once_the_time_for_corrections_is_up() -> None:
+    clock = FakeClock()
+    session, spoken = start_session(clock=clock)
+    hold_up(session, RED_SEVEN)
+
+    clock.seconds += CORRECTION_SECONDS + 0.1
+    hold_up(session, BLUE_SKIP)
+
+    assert session.card == RED_SEVEN
+    assert spoken == ["red seven"]
+
+
+def test_does_not_correct_a_card_to_the_back_of_a_card() -> None:
+    session, spoken = start_session()
+    hold_up(session, RED_SEVEN)
+
+    hold_up(session, CARD_BACK)
 
     assert session.card == RED_SEVEN
     assert spoken == ["red seven"]
