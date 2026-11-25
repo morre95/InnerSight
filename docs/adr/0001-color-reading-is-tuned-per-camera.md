@@ -1,13 +1,17 @@
 # The color reading is tuned per camera, not shared
 
 The desktop color reading (`color.py`) and the phone color reading (`color_classifier.dart`)
-are deliberately separate: they use different hue ranges and thresholds, and the desktop one
-has extra steps (white balance, the olive band split by brightness, a stricter saturation for
-blue) that the phone lacks. Those steps correct for one webcam in a room lit by a monitor. The
-phone camera balances white itself and reads colors well with the simpler reading, so porting
-the desktop calibration to the phone, or exporting one calibration for both, risks making the
-phone worse.
+use different hue ranges and thresholds on purpose. The desktop numbers are tuned for one
+webcam in a room lit by a monitor; the phone camera gives other colors and reads cards well
+with its own numbers. So a change to the numbers of one does not need a matching change to
+the other, and one calibration is not exported for both.
 
-A change to one color reading therefore does not need a matching change to the other. The
-other logic that exists on both sides (watcher, announcer, guessing session, spoken names) is
-still changed on both sides together.
+The steps are another matter. Removing the tint of the light (white balance from the brightest
+pixels of the box) is needed on both: a log from the phone in monitor light showed the white
+of the card counted as blue, so that no color dominated, and the step fixed it. The desktop
+has further steps the phone lacks (the olive band split by brightness, a stricter saturation
+for blue, red reaching down into purple). Port one of them only when a log from the phone
+shows it is needed, and check in daylight that it does not make the good case worse.
+
+The other logic that exists on both sides (watcher, announcer, guessing session, spoken names)
+is still changed on both sides together.

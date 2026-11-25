@@ -30,6 +30,35 @@ Uint8List _solidRgb(int width, int height, int r, int g, int b) {
   return bytes;
 }
 
+/// How much of the red, green and blue light is left in the bluish light of
+/// a monitor.
+const _bluishLight = (0.6, 0.6, 1.0);
+
+/// A card of one color with a white field in its middle, as a number card has
+/// its white oval, seen in [light].
+Uint8List _numberCard(
+  int r,
+  int g,
+  int b, {
+  (double, double, double) light = (1.0, 1.0, 1.0),
+}) {
+  const size = 100;
+  final bytes = Uint8List(size * size * 3);
+  for (var y = 0; y < size; y++) {
+    for (var x = 0; x < size; x++) {
+      final isWhite = x >= 30 && x < 70 && y >= 30 && y < 70;
+      final index = (y * size + x) * 3;
+      bytes[index] = ((isWhite ? 255 : r) * light.$1).round();
+      bytes[index + 1] = ((isWhite ? 255 : g) * light.$2).round();
+      bytes[index + 2] = ((isWhite ? 255 : b) * light.$3).round();
+    }
+  }
+  return bytes;
+}
+
+CardColor _colorOf(Uint8List numberCard) =>
+    classifyCardColor(rgbBytes: numberCard, imageWidth: 100, imageHeight: 100);
+
 RecognizedCard _makeCard(
   CardColor color,
   String rank, {
@@ -88,52 +117,26 @@ void main() {
 
   group('HSV color classification', () {
     test('classifies red at both low hue and wrap-around high hue', () {
-      final lowHueRed = _solidRgb(40, 40, 225, 25, 10);
-      final highHueRed = _solidRgb(40, 40, 230, 10, 80);
-
-      expect(
-        classifyCardColor(
-          rgbBytes: lowHueRed,
-          imageWidth: 40,
-          imageHeight: 40,
-        ),
-        CardColor.red,
-      );
-      expect(
-        classifyCardColor(
-          rgbBytes: highHueRed,
-          imageWidth: 40,
-          imageHeight: 40,
-        ),
-        CardColor.red,
-      );
+      expect(_colorOf(_numberCard(225, 25, 10)), CardColor.red);
+      expect(_colorOf(_numberCard(230, 10, 80)), CardColor.red);
     });
 
     test('classifies yellow, green, and blue cards', () {
-      expect(
-        classifyCardColor(
-          rgbBytes: _solidRgb(40, 40, 235, 215, 10),
-          imageWidth: 40,
-          imageHeight: 40,
-        ),
-        CardColor.yellow,
-      );
-      expect(
-        classifyCardColor(
-          rgbBytes: _solidRgb(40, 40, 20, 190, 40),
-          imageWidth: 40,
-          imageHeight: 40,
-        ),
-        CardColor.green,
-      );
-      expect(
-        classifyCardColor(
-          rgbBytes: _solidRgb(40, 40, 20, 70, 225),
-          imageWidth: 40,
-          imageHeight: 40,
-        ),
-        CardColor.blue,
-      );
+      expect(_colorOf(_numberCard(235, 215, 10)), CardColor.yellow);
+      expect(_colorOf(_numberCard(20, 190, 40)), CardColor.green);
+      expect(_colorOf(_numberCard(20, 70, 225)), CardColor.blue);
+    });
+
+    test('reads a red card in bluish light that tints its white blue', () {
+      final card = _numberCard(225, 25, 10, light: _bluishLight);
+
+      expect(_colorOf(card), CardColor.red);
+    });
+
+    test('reads a yellow card in bluish light that tints its white blue', () {
+      final card = _numberCard(235, 215, 10, light: _bluishLight);
+
+      expect(_colorOf(card), CardColor.yellow);
     });
 
     test('reports unknown on low-saturation or 4-way split crops', () {

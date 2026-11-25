@@ -105,8 +105,9 @@ too. The `.onnx` file is ignored by git, the config is not.
 
 Logic that exists on both sides (watcher, announcer, guessing session, spoken names) should be
 changed on both sides in the same change, with the matching test. The color reading is the
-exception: `color.py` and `color_classifier.dart` are each tuned for their own camera and
-differ on purpose (`docs/adr/0001-color-reading-is-tuned-per-camera.md`).
+exception: the hue ranges and thresholds in `color.py` and `color_classifier.dart` are each
+tuned for their own camera and differ on purpose. Both remove the tint of the light first
+(`docs/adr/0001-color-reading-is-tuned-per-camera.md`).
 
 ### Guessing game
 
