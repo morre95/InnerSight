@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
 
@@ -25,12 +26,28 @@ class OnnxCardDetector implements CardDetector {
   }) async {
     final configJson = await rootBundle.loadString(configAsset);
     final config = ModelConfig.fromJsonString(configJson);
-    final modelPath = await _materializeModelAsset(modelAsset);
     final ort = OnnxRuntime();
+    final session = kIsWeb
+        ? await ort.createSession(
+            'assets/$modelAsset',
+            options: OrtSessionOptions(providers: [OrtProvider.WEB_ASSEMBLY]),
+          )
+        : await _createNativeSession(ort, modelAsset);
 
-    OrtSession session;
+    return OnnxCardDetector._(
+      session: session,
+      config: config,
+      iouThreshold: iouThreshold,
+    );
+  }
+
+  static Future<OrtSession> _createNativeSession(
+    OnnxRuntime ort,
+    String modelAsset,
+  ) async {
+    final modelPath = await _materializeModelAsset(modelAsset);
     try {
-      session = await ort.createSession(
+      return await ort.createSession(
         modelPath,
         options: OrtSessionOptions(
           intraOpNumThreads: 4,
@@ -38,17 +55,11 @@ class OnnxCardDetector implements CardDetector {
         ),
       );
     } catch (_) {
-      session = await ort.createSession(
+      return ort.createSession(
         modelPath,
         options: OrtSessionOptions(intraOpNumThreads: 4),
       );
     }
-
-    return OnnxCardDetector._(
-      session: session,
-      config: config,
-      iouThreshold: iouThreshold,
-    );
   }
 
   /// Writes [modelAsset] to a content-hashed file in [Directory.systemTemp] so

@@ -136,6 +136,14 @@ def test_reads_a_green_card_washed_out_by_bright_light_behind_it() -> None:
     assert classify_card_color(washed_out_card) is CardColor.GREEN
 
 
+def test_does_not_take_a_finger_on_a_washed_out_card_for_a_red_card() -> None:
+    card = make_number_card((170, 170, 170))
+    skin_bgr = bgr_from_hue(RED_HUE + 6, saturation=150, value=200)
+    cv2.rectangle(card, (60, 200), (96, 248), skin_bgr, cv2.FILLED)
+
+    assert classify_card_color(card) is CardColor.UNKNOWN
+
+
 def test_returns_unknown_for_a_crop_split_between_four_colors() -> None:
     assert classify_card_color(make_wild_card()) is CardColor.UNKNOWN
 

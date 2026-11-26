@@ -50,6 +50,12 @@ CENTER_FRACTION = 0.6
 # Below this share of colored pixels the card has no color of its own.
 MIN_COLORED_FRACTION = 0.05
 
+# Skin has the hues of red and yellow, and fingers hold the card. When the color of the card
+# itself is washed out, they are the only colored pixels left. So a red or yellow card needs a
+# larger share of colored pixels, more than fingers cover.
+SKIN_HUED_COLORS = frozenset({CardColor.RED, CardColor.YELLOW})
+MIN_SKIN_HUED_FRACTION = 0.12
+
 # A number or action card is one color. Background or glare splits the colored pixels.
 MIN_DOMINANT_SHARE = 0.6
 
@@ -82,6 +88,8 @@ def classify_card_color(card_bgr: np.ndarray) -> CardColor:
 
     dominant_color = max(pixel_counts, key=pixel_counts.__getitem__)
     if pixel_counts[dominant_color] < MIN_DOMINANT_SHARE * colored_count:
+        return CardColor.UNKNOWN
+    if dominant_color in SKIN_HUED_COLORS and colored_count < MIN_SKIN_HUED_FRACTION * hue.size:
         return CardColor.UNKNOWN
     return dominant_color
 

@@ -171,6 +171,25 @@ In the phone app, choose the number of cards and press Start game. Swipe up, lef
 down for the same answers as the arrow keys, and double-tap to lock in. Its result board shows
 the same pictures of the cards.
 
+## Publish the web app
+
+The current web app is public on GitHub Pages. [Play InnerSight](https://morre95.github.io/InnerSight/)
+
+1. Make sure `mobile/assets/models/own-cards.onnx` exists. If it is missing, follow the
+   model export steps under [Train the detector](#train-the-detector).
+2. Build the site from the repository root.
+
+   ```bash
+   cd mobile
+   flutter build web --base-href /InnerSight/ --no-web-resources-cdn
+   ```
+
+3. Copy the contents of `mobile/build/web/` to the root of the `gh-pages` branch and keep the
+   `.nojekyll` file there. Commit and push that branch to GitHub.
+
+GitHub Pages deploys automatically after the push. The published site includes the ONNX model
+as a downloadable asset.
+
 ## Calibrate the colors
 
 The hue ranges and thresholds in [color.py](src/innersight/color.py) are tuned for one webcam in

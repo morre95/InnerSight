@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'card_camera_view.dart';
 import 'card_overlay.dart';
@@ -29,7 +31,8 @@ GuessOutcome? swipeOutcome(Offset swipe) {
   return swipe.dy < 0 ? GuessOutcome.bothRight : GuessOutcome.miss;
 }
 
-/// The guessing game: swipe anywhere to answer, double-tap to lock in.
+/// The guessing game accepts swipes and arrow keys for answers, and a
+/// double-tap or Space to lock them in.
 class GameScreen extends StatefulWidget {
   const GameScreen({
     super.key,
@@ -93,10 +96,35 @@ class _GameScreenState extends State<GameScreen> {
 
   void _onSwipeEnd(DragEndDetails details) {
     final outcome = swipeOutcome(_swipe);
-    if (outcome == null) return;
+    if (outcome != null) _giveAnswer(outcome);
+  }
+
+  void _giveAnswer(GuessOutcome outcome) {
     setState(() {
       _session.giveAnswer(outcome);
     });
+  }
+
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    final outcome = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowUp => GuessOutcome.bothRight,
+      LogicalKeyboardKey.arrowLeft => GuessOutcome.colorRight,
+      LogicalKeyboardKey.arrowRight => GuessOutcome.rankRight,
+      LogicalKeyboardKey.arrowDown => GuessOutcome.miss,
+      _ => null,
+    };
+    final isLockIn = event.logicalKey == LogicalKeyboardKey.space;
+    if (outcome == null && !isLockIn) return KeyEventResult.ignored;
+
+    if (event is KeyDownEvent) {
+      if (outcome != null) {
+        _giveAnswer(outcome);
+      } else {
+        _lockIn();
+      }
+    }
+    // Consume game keys, including repeats, so the browser doesn't scroll.
+    return KeyEventResult.handled;
   }
 
   void _lockIn() {
@@ -144,33 +172,40 @@ class _GameScreenState extends State<GameScreen> {
       canPop: false,
       child: Scaffold(
         backgroundColor: Colors.black,
-        body: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onPanStart: (_) => _swipe = Offset.zero,
-          onPanUpdate: (details) => _swipe += details.delta,
-          onPanEnd: _onSwipeEnd,
-          onDoubleTap: _lockIn,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              CardCameraView(
-                key: _cameraView,
-                detector: widget.detector,
-                config: widget.config,
-                minConfidence: widget.minConfidence,
-                preferredLensDirection: CameraLensDirection.front,
-                onCards: _onCards,
-              ),
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [_buildRoundBanner(session), _buildSwipeHints()],
+        body: Focus(
+          autofocus: true,
+          onKeyEvent: _onKeyEvent,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onPanStart: (_) => _swipe = Offset.zero,
+            onPanUpdate: (details) => _swipe += details.delta,
+            onPanEnd: _onSwipeEnd,
+            onDoubleTap: _lockIn,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CardCameraView(
+                  key: _cameraView,
+                  detector: widget.detector,
+                  config: widget.config,
+                  minConfidence: widget.minConfidence,
+                  preferredLensDirection: CameraLensDirection.front,
+                  onCards: _onCards,
+                ),
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildRoundBanner(session),
+                        _buildControlHints(),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -229,12 +264,16 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  Widget _buildSwipeHints() {
+  Widget _buildControlHints() {
     return const OverlayPanel(
       child: Text(
-        'Swipe up: both right   left: color right\n'
-        'Swipe right: rank right   down: miss\n'
-        'Double-tap: lock in the answer',
+        kIsWeb
+            ? 'Arrow keys or swipes\n'
+                  '↑ Both right   ← Color right   → Rank right   ↓ Miss\n'
+                  'Space or double-tap to lock in'
+            : 'Swipe up: both right   left: color right\n'
+                  'Swipe right: rank right   down: miss\n'
+                  'Double-tap: lock in the answer',
         textAlign: TextAlign.center,
         style: TextStyle(color: Colors.white70, fontSize: 13),
       ),

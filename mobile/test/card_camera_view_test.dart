@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:innersight_mobile/src/announcer.dart';
 import 'package:innersight_mobile/src/card_camera_view.dart';
 import 'package:innersight_mobile/src/cards.dart';
 import 'package:innersight_mobile/src/frame_prep.dart';
@@ -190,6 +192,53 @@ void main() {
       final platform = await openGame(tester, [_backCamera]);
 
       expect(platform.openCameras.values, ['back']);
+    });
+
+    testWidgets('arrow keys answer and Space locks in the round', (
+      tester,
+    ) async {
+      await openGame(tester, [_frontCamera]);
+      final view = tester.widget<CardCameraView>(find.byType(CardCameraView));
+      final frame = PreparedFrame(
+        rgbBytes: Uint8List.fromList([255, 0, 0]),
+        uprightWidth: 1,
+        uprightHeight: 1,
+        inputTensor: Float32List(3),
+        inputSize: 1,
+        letterboxScale: 1,
+        padLeft: 0,
+        padTop: 0,
+      );
+      const card = RecognizedCard(
+        detection: Detection(
+          rank: '7',
+          confidence: 0.9,
+          box: Box(x1: 0, y1: 0, x2: 1, y2: 1),
+        ),
+        color: CardColor.red,
+      );
+      for (var i = 0; i < stableFrameCount; i++) {
+        view.onCards(frame, [card], 0);
+      }
+      await tester.pump();
+
+      const answers = [
+        (LogicalKeyboardKey.arrowUp, 'both right'),
+        (LogicalKeyboardKey.arrowLeft, 'color right'),
+        (LogicalKeyboardKey.arrowRight, 'rank right'),
+        (LogicalKeyboardKey.arrowDown, 'miss'),
+      ];
+      for (final (key, answer) in answers) {
+        await tester.sendKeyEvent(key);
+        await tester.pump();
+        expect(find.text('Answer: $answer'), findsOneWidget);
+      }
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pump();
+
+      expect(find.text('Card 2 of 10'), findsOneWidget);
+      expect(find.text('Answer: -'), findsOneWidget);
     });
   });
 

@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:camera/camera.dart' show CameraImage;
+import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:innersight_mobile/src/announcer.dart';
 import 'package:innersight_mobile/src/cards.dart';
@@ -576,6 +578,34 @@ void main() {
       // Center unpadded pixel (x=3, y=1) has red channel = 1.0, green = 0.0.
       expect(prepared.inputTensor[1 * 8 + 3], closeTo(1.0, 1e-5));
       expect(prepared.inputTensor[64 + 1 * 8 + 3], closeTo(0.0, 1e-5));
+    });
+
+    test('keeps the color channels of browser RGBA camera frames', () async {
+      final image = CameraImage.fromPlatformInterface(
+        CameraImageData(
+          format: const CameraImageFormat(
+            ImageFormatGroup.unknown,
+            raw: 'rgba8888',
+          ),
+          width: 2,
+          height: 1,
+          planes: [
+            CameraImagePlane(
+              bytes: Uint8List.fromList([255, 0, 0, 255, 0, 0, 255, 255]),
+              bytesPerRow: 8,
+              bytesPerPixel: 4,
+            ),
+          ],
+        ),
+      );
+
+      final prepared = await prepareCameraFrame(
+        image,
+        sensorOrientation: 0,
+        inputSize: 2,
+      );
+
+      expect(prepared.rgbBytes, [255, 0, 0, 0, 0, 255]);
     });
   });
 }

@@ -7,6 +7,7 @@ import 'cards.dart';
 import 'detector.dart';
 import 'game_screen.dart';
 import 'recognition.dart';
+import 'tts_speaker.dart';
 
 const int defaultCardCount = 10;
 const int maxCardCount = 50;
@@ -71,6 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _open(Widget screen) {
+    TtsSpeaker.enableBrowserAudio();
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
   }
 

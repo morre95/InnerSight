@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// Sendable snapshot of one plane from a [CameraImage].
 class RawPlaneData {
@@ -18,7 +19,7 @@ class RawPlaneData {
 }
 
 /// Pixel buffer format of a [RawCameraFrame].
-enum RawPixelFormat { yuv420, nv21, bgra8888 }
+enum RawPixelFormat { yuv420, nv21, bgra8888, rgba8888 }
 
 /// Pure-Dart camera buffer transferable to a background isolate.
 class RawCameraFrame {
@@ -30,9 +31,10 @@ class RawCameraFrame {
   });
 
   factory RawCameraFrame.fromCameraImage(CameraImage image) {
-    final format = switch (image.format.group) {
-      ImageFormatGroup.nv21 => RawPixelFormat.nv21,
-      ImageFormatGroup.bgra8888 => RawPixelFormat.bgra8888,
+    final format = switch (image.format) {
+      ImageFormat(raw: 'rgba8888') => RawPixelFormat.rgba8888,
+      ImageFormat(group: ImageFormatGroup.nv21) => RawPixelFormat.nv21,
+      ImageFormat(group: ImageFormatGroup.bgra8888) => RawPixelFormat.bgra8888,
       _ => RawPixelFormat.yuv420,
     };
     return RawCameraFrame(
@@ -79,20 +81,20 @@ class PreparedFrame {
   final int padTop;
 }
 
-/// Converts and letterboxes [image] on a background isolate.
+/// Converts and letterboxes [image], using a background isolate on native platforms.
 Future<PreparedFrame> prepareCameraFrame(
   CameraImage image, {
   required int sensorOrientation,
   int inputSize = 640,
-}) {
+}) async {
   final rawFrame = RawCameraFrame.fromCameraImage(image);
-  return Isolate.run(
-    () => prepareFrameSync(
-      rawFrame,
-      sensorOrientation: sensorOrientation,
-      inputSize: inputSize,
-    ),
+  PreparedFrame prepare() => prepareFrameSync(
+    rawFrame,
+    sensorOrientation: sensorOrientation,
+    inputSize: inputSize,
   );
+  if (kIsWeb) return prepare();
+  return Isolate.run(prepare);
 }
 
 /// Synchronous worker that rotates [frame] to upright RGB and builds `[1, 3, S, S]`.
@@ -157,18 +159,23 @@ Uint8List _extractUprightRgb(
   final rawHeight = frame.height;
   final rgb = Uint8List(uprightWidth * uprightHeight * 3);
 
-  if (frame.format == RawPixelFormat.bgra8888 || frame.planes.length == 1 && frame.planes.first.bytesPerPixel == 4) {
+  final isRgba = frame.format == RawPixelFormat.rgba8888;
+  if (isRgba ||
+      frame.format == RawPixelFormat.bgra8888 ||
+      frame.planes.length == 1 && frame.planes.first.bytesPerPixel == 4) {
     final plane = frame.planes.first;
     final bytes = plane.bytes;
     final rowStride = plane.bytesPerRow;
+    final redOffset = isRgba ? 0 : 2;
+    final blueOffset = isRgba ? 2 : 0;
     var outIdx = 0;
     for (var dy = 0; dy < uprightHeight; dy++) {
       for (var dx = 0; dx < uprightWidth; dx++) {
         final (sx, sy) = _mapToRaw(dx, dy, rawWidth, rawHeight, rotationDegrees);
         final idx = sy * rowStride + sx * 4;
-        rgb[outIdx++] = bytes[idx + 2];
+        rgb[outIdx++] = bytes[idx + redOffset];
         rgb[outIdx++] = bytes[idx + 1];
-        rgb[outIdx++] = bytes[idx];
+        rgb[outIdx++] = bytes[idx + blueOffset];
       }
     }
     return rgb;

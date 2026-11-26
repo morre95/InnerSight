@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -209,6 +210,8 @@ class CardCameraViewState extends State<CardCameraView>
       setState(() {
         _cameraController = controller;
         _cards = const [];
+        _frameWidth = 1;
+        _frameHeight = 1;
         _isInitializing = false;
         _errorMessage = null;
       });
@@ -240,16 +243,18 @@ class CardCameraViewState extends State<CardCameraView>
     }
 
     _isProcessing = true;
-    final sensorOrientation = controller.description.sensorOrientation;
-    unawaited(_processFrame(image, sensorOrientation));
+    unawaited(_processFrame(image, controller));
   }
 
-  Future<void> _processFrame(CameraImage image, int sensorOrientation) async {
+  Future<void> _processFrame(
+    CameraImage image,
+    CameraController controller,
+  ) async {
     final stopwatch = Stopwatch()..start();
     try {
       final prepared = await prepareCameraFrame(
         image,
-        sensorOrientation: sensorOrientation,
+        sensorOrientation: controller.description.sensorOrientation,
         inputSize: widget.config.inputSize,
       );
       final recognized = await recognizeCards(
@@ -260,7 +265,7 @@ class CardCameraViewState extends State<CardCameraView>
       );
       stopwatch.stop();
 
-      if (!mounted || _cameraController == null) return;
+      if (!mounted || _cameraController != controller) return;
       setState(() {
         _cards = recognized;
         _frameWidth = prepared.uprightWidth;
@@ -384,21 +389,35 @@ class CardCameraViewState extends State<CardCameraView>
       );
     }
 
-    final isFrontCamera =
-        controller.description.lensDirection == CameraLensDirection.front;
-
-    return Center(
-      child: CameraPreview(
-        controller,
-        child: CustomPaint(
-          painter: CardOverlayPainter(
-            cards: _cards,
-            frameWidth: _frameWidth,
-            frameHeight: _frameHeight,
-            mirrorHorizontal: isFrontCamera,
-          ),
-        ),
+    final lensDirection = controller.description.lensDirection;
+    final overlay = CustomPaint(
+      painter: CardOverlayPainter(
+        cards: _cards,
+        frameWidth: _frameWidth,
+        frameHeight: _frameHeight,
+        // camera_web also mirrors cameras whose facing direction is unknown.
+        mirrorHorizontal: kIsWeb
+            ? lensDirection != CameraLensDirection.back
+            : lensDirection == CameraLensDirection.front,
       ),
     );
+
+    if (kIsWeb) {
+      // The browser delivers an upright frame. Giving the video its actual
+      // aspect ratio prevents its cover style from cropping the image.
+      return Center(
+        child: AspectRatio(
+          aspectRatio: _frameWidth > 1
+              ? _frameWidth / _frameHeight
+              : controller.value.aspectRatio,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [controller.buildPreview(), overlay],
+          ),
+        ),
+      );
+    }
+
+    return Center(child: CameraPreview(controller, child: overlay));
   }
 }
