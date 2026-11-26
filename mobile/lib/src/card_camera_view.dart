@@ -20,6 +20,7 @@ class CardCameraView extends StatefulWidget {
     required this.config,
     required this.onCards,
     required this.minConfidence,
+    this.preferredLensDirection = CameraLensDirection.back,
   });
 
   /// Finds the cards in every frame. It is not disposed by this view.
@@ -38,6 +39,9 @@ class CardCameraView extends StatefulWidget {
 
   /// Detections below this confidence are ignored.
   final double minConfidence;
+
+  /// Which way the starting camera should face, when available.
+  final CameraLensDirection preferredLensDirection;
 
   @override
   State<CardCameraView> createState() => CardCameraViewState();
@@ -154,7 +158,10 @@ class CardCameraViewState extends State<CardCameraView>
         }
 
         _cameras = _selectPrimaryCameras(discovered);
-        _selectedCameraIndex = 0;
+        final preferredIndex = _cameras.indexWhere(
+          (camera) => camera.lensDirection == widget.preferredLensDirection,
+        );
+        _selectedCameraIndex = preferredIndex < 0 ? 0 : preferredIndex;
 
         await _startCameraInternal(_cameras[_selectedCameraIndex]);
       } catch (error, stack) {

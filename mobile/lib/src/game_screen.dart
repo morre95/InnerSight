@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
 import 'card_camera_view.dart';
@@ -157,6 +158,7 @@ class _GameScreenState extends State<GameScreen> {
                 detector: widget.detector,
                 config: widget.config,
                 minConfidence: widget.minConfidence,
+                preferredLensDirection: CameraLensDirection.front,
                 onCards: _onCards,
               ),
               SafeArea(

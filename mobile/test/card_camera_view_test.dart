@@ -1,11 +1,14 @@
 import 'dart:async';
 
 import 'package:camera_platform_interface/camera_platform_interface.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:innersight_mobile/src/card_camera_view.dart';
 import 'package:innersight_mobile/src/cards.dart';
 import 'package:innersight_mobile/src/frame_prep.dart';
+import 'package:innersight_mobile/src/game_screen.dart';
 import 'package:innersight_mobile/src/recognition.dart';
 
 const _backCamera = CameraDescription(
@@ -114,8 +117,9 @@ class _NeverCalledDetector implements CardDetector {
 void main() {
   final cameraView = GlobalKey<CardCameraViewState>();
 
-  Future<_FakeCameraPlatform> openView(
-    WidgetTester tester, {
+  Future<_FakeCameraPlatform> openScreen(
+    WidgetTester tester,
+    Widget screen, {
     List<CameraDescription> cameras = const [_backCamera, _frontCamera],
   }) async {
     final platform = _FakeCameraPlatform(cameras);
@@ -125,20 +129,69 @@ void main() {
         AppLifecycleState.resumed,
       ),
     );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: CardCameraView(
-          key: cameraView,
-          detector: _NeverCalledDetector(),
-          config: ModelConfig.defaults(),
-          minConfidence: 0.5,
-          onCards: (frame, cards, latencyMs) {},
-        ),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: screen));
     await _letCameraWorkFinish(tester);
     return platform;
   }
+
+  Future<_FakeCameraPlatform> openView(
+    WidgetTester tester, {
+    List<CameraDescription> cameras = const [_backCamera, _frontCamera],
+  }) => openScreen(
+    tester,
+    CardCameraView(
+      key: cameraView,
+      detector: _NeverCalledDetector(),
+      config: ModelConfig.defaults(),
+      minConfidence: 0.5,
+      onCards: (frame, cards, latencyMs) {},
+    ),
+    cameras: cameras,
+  );
+
+  Future<_FakeCameraPlatform> openGame(
+    WidgetTester tester,
+    List<CameraDescription> cameras,
+  ) {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('flutter_tts'),
+      (_) async => null,
+    );
+    return openScreen(
+      tester,
+      GameScreen(
+        cardCount: 10,
+        detector: _NeverCalledDetector(),
+        config: ModelConfig.defaults(),
+        minConfidence: 0.5,
+      ),
+      cameras: cameras,
+    );
+  }
+
+  group('GameScreen', () {
+    testWidgets('starts on the front camera and can switch to the back', (
+      tester,
+    ) async {
+      final platform = await openGame(tester, [_backCamera, _frontCamera]);
+
+      expect(platform.opened, ['front']);
+
+      await tester.tap(find.byTooltip('Switch camera'));
+      await tester.pump(kDoubleTapTimeout);
+      await _letCameraWorkFinish(tester);
+
+      expect(platform.openCameras.values, ['back']);
+    });
+
+    testWidgets('starts on the back camera when there is no front camera', (
+      tester,
+    ) async {
+      final platform = await openGame(tester, [_backCamera]);
+
+      expect(platform.openCameras.values, ['back']);
+    });
+  });
 
   group('CardCameraView', () {
     testWidgets('opens the back camera first', (tester) async {
