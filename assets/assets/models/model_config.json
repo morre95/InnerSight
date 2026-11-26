@@ -1,0 +1,58 @@
+{
+  "input_size": 640,
+  "output_shape": [
+    1,
+    23,
+    8400
+  ],
+  "ranks": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "skip",
+    "reverse",
+    "+2",
+    "wild",
+    "+4",
+    "back",
+    "shuffle",
+    "joker",
+    "customizable"
+  ],
+  "wild_ranks": [
+    "wild",
+    "+4",
+    "shuffle",
+    "joker",
+    "customizable"
+  ],
+  "back_rank": "back",
+  "spoken_ranks": {
+    "0": "zero",
+    "1": "one",
+    "2": "two",
+    "3": "three",
+    "4": "four",
+    "5": "five",
+    "6": "six",
+    "7": "seven",
+    "8": "eight",
+    "9": "nine",
+    "skip": "skip",
+    "reverse": "reverse",
+    "+2": "draw two",
+    "wild": "wild",
+    "+4": "draw four",
+    "back": "card back",
+    "shuffle": "shuffle",
+    "joker": "joker",
+    "customizable": "customizable"
+  }
+}
