@@ -129,6 +129,13 @@ def test_reads_a_dimly_lit_olive_card_that_is_as_bright_as_its_white_as_yellow()
     assert classify_card_color(dim_card) is CardColor.YELLOW
 
 
+def test_reads_a_green_card_washed_out_by_bright_light_behind_it() -> None:
+    card = make_number_card(bgr_from_hue(GREEN_HUE))
+    washed_out_card = (card * 0.4 + 150).astype(np.uint8)
+
+    assert classify_card_color(washed_out_card) is CardColor.GREEN
+
+
 def test_returns_unknown_for_a_crop_split_between_four_colors() -> None:
     assert classify_card_color(make_wild_card()) is CardColor.UNKNOWN
 

@@ -31,6 +31,14 @@ MIN_VALUE = 50
 # would otherwise outnumber the color of a red or yellow card.
 MIN_BLUE_SATURATION = 160
 
+# Bright light behind the card lays a veil over it: the dark parts turn gray and every color
+# weaker. The veil shows in the contrast of the crop, which is how far its darkest pixels lie
+# below its white, as a share of that white. In ordinary light the contrast is at least
+# NORMAL_CONTRAST and the saturation limits apply as they are. Below it they are lowered with
+# the square of the contrast, as the veil weakens a dark color more than it lowers the contrast.
+NORMAL_CONTRAST = 0.8
+DARK_PERCENTILE = 2
+
 # The white of the card is taken from the brightest pixels: in each color channel, the level
 # that this share of the crop stays below.
 WHITE_PERCENTILE = 90
@@ -54,14 +62,16 @@ def classify_card_color(card_bgr: np.ndarray) -> CardColor:
     balanced_bgr, white_level = _balance_white(card_bgr)
     hsv = cv2.cvtColor(_crop_center(balanced_bgr), cv2.COLOR_BGR2HSV)
     hue, saturation, value = hsv[..., 0], hsv[..., 1], hsv[..., 2]
-    is_colored = (saturation >= MIN_SATURATION) & (value >= MIN_VALUE)
+    saturation_scale = _saturation_scale(card_bgr)
+    is_colored = (saturation >= MIN_SATURATION * saturation_scale) & (value >= MIN_VALUE)
     is_yellow_or_green = _is_in_ranges(hue, YELLOW_OR_GREEN_HUES)
     is_bright = value >= MIN_YELLOW_BRIGHTNESS * white_level
+    is_strong = saturation >= MIN_BLUE_SATURATION * saturation_scale
     is_color = {
         CardColor.RED: _is_in_ranges(hue, RED_HUES),
         CardColor.YELLOW: _is_in_ranges(hue, YELLOW_HUES) | (is_yellow_or_green & is_bright),
         CardColor.GREEN: _is_in_ranges(hue, GREEN_HUES) | (is_yellow_or_green & ~is_bright),
-        CardColor.BLUE: _is_in_ranges(hue, BLUE_HUES) & (saturation >= MIN_BLUE_SATURATION),
+        CardColor.BLUE: _is_in_ranges(hue, BLUE_HUES) & is_strong,
     }
     pixel_counts = {
         color: int(np.count_nonzero(is_colored & mask)) for color, mask in is_color.items()
@@ -74,6 +84,18 @@ def classify_card_color(card_bgr: np.ndarray) -> CardColor:
     if pixel_counts[dominant_color] < MIN_DOMINANT_SHARE * colored_count:
         return CardColor.UNKNOWN
     return dominant_color
+
+
+def _saturation_scale(image_bgr: np.ndarray) -> float:
+    """How much of a color's saturation is left under the veil of bright light behind the card.
+
+    It is 1 in ordinary light.
+    """
+    pixels = image_bgr.reshape(-1, 3)
+    dark_level = np.percentile(pixels, DARK_PERCENTILE, axis=0).min()
+    white_level = max(np.percentile(pixels, WHITE_PERCENTILE, axis=0).max(), 1)
+    contrast = 1 - dark_level / white_level
+    return float(min(contrast / NORMAL_CONTRAST, 1) ** 2)
 
 
 def _balance_white(image_bgr: np.ndarray) -> tuple[np.ndarray, float]:
