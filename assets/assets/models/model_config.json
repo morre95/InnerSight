@@ -2,7 +2,7 @@
   "input_size": 640,
   "output_shape": [
     1,
-    23,
+    22,
     8400
   ],
   "ranks": [
@@ -23,14 +23,12 @@
     "+4",
     "back",
     "shuffle",
-    "joker",
     "customizable"
   ],
   "wild_ranks": [
     "wild",
     "+4",
     "shuffle",
-    "joker",
     "customizable"
   ],
   "back_rank": "back",
@@ -52,7 +50,6 @@
     "+4": "draw four",
     "back": "card back",
     "shuffle": "shuffle",
-    "joker": "joker",
     "customizable": "customizable"
   }
 }
