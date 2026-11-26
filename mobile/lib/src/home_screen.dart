@@ -40,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _cardCount = defaultCardCount;
 
   double _minConfidence = defaultMinConfidence;
+  bool _speaksResult = false;
   bool _showsAdvanced = false;
 
   /// Loaded once and kept for as long as the app runs, as loading is slow.
@@ -138,6 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
               detector: cardModel.detector,
               config: cardModel.config,
               minConfidence: _minConfidence,
+              speaksResult: _speaksResult,
             ),
           ),
           icon: const Icon(Icons.play_arrow),
@@ -180,8 +182,9 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
   }
 
-  /// What most players never need: how sure the model must be of a card, and
-  /// reading cards aloud without a game.
+  /// What most players never need: how sure the model must be of a card,
+  /// saying the result when a game ends, and reading cards aloud without a
+  /// game.
   List<Widget> _buildAdvancedControls(
     TextTheme textTheme,
     CardModel cardModel,
@@ -199,6 +202,13 @@ class _HomeScreenState extends State<HomeScreen> {
         divisions: 14,
         onChanged: (value) => setState(() {
           _minConfidence = value;
+        }),
+      ),
+      SwitchListTile(
+        title: const Text('Say the result when a game is finished'),
+        value: _speaksResult,
+        onChanged: (value) => setState(() {
+          _speaksResult = value;
         }),
       ),
       FilledButton.tonalIcon(

@@ -6,6 +6,7 @@ const String nextCardPhrase = 'Locked in. Next card';
 const String lastCardPhrase = 'Locked in. Last card';
 const String noCardPhrase = 'Hold up a card first';
 const String noAnswerPhrase = 'Answer first';
+const String sessionFinishedPhrase = 'Session finished';
 
 /// Said before the name of the card when the reading of a round is corrected.
 const String correctionPhrase = 'Correction';
@@ -48,11 +49,14 @@ class GuessRound {
 /// it in. Direct port of `GuessingSession` in `src/innersight/guessing.py`.
 ///
 /// [now] gives the current time; it is the clock of the device by default.
+/// With [speaksResult] the count of every answer is said when the session
+/// ends; without it the voice only says that the session is finished.
 class GuessingSession {
   GuessingSession({
     required this.cardCount,
     required this.say,
     this.spokenRanks = defaultSpokenRanks,
+    this.speaksResult = false,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now {
     say(firstCardPhrase);
@@ -61,6 +65,7 @@ class GuessingSession {
   final int cardCount;
   final void Function(String phrase) say;
   final Map<String, String> spokenRanks;
+  final bool speaksResult;
   final DateTime Function() _now;
 
   final CardWatcher _watcher = CardWatcher();
@@ -197,7 +202,7 @@ class GuessingSession {
   String _phraseAfterLockingIn() {
     final cardsLeft = cardCount - _rounds.length;
     if (cardsLeft == 0) {
-      return spokenSummary(_rounds);
+      return speaksResult ? spokenSummary(_rounds) : sessionFinishedPhrase;
     }
     return cardsLeft == 1 ? lastCardPhrase : nextCardPhrase;
   }
@@ -216,5 +221,5 @@ String spokenSummary(List<GuessRound> rounds) {
   final counts = countOutcomes(
     rounds,
   ).entries.map((entry) => '${entry.key.phrase} ${entry.value}').join(', ');
-  return 'Session finished. $counts.';
+  return '$sessionFinishedPhrase. $counts.';
 }

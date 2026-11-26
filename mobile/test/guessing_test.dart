@@ -64,10 +64,11 @@ void main() {
   late DateTime now;
 
   /// Starts a session and forgets the greeting.
-  GuessingSession startSession({int cardCount = 2}) {
+  GuessingSession startSession({int cardCount = 2, bool speaksResult = false}) {
     final session = GuessingSession(
       cardCount: cardCount,
       say: spoken.add,
+      speaksResult: speaksResult,
       now: () => now,
     );
     spoken.clear();
@@ -313,8 +314,18 @@ void main() {
       expect(session.card, isNull);
     });
 
-    test('finishes after the chosen number of cards and says the result', () {
+    test('says only that the session is finished when the result is not '
+        'spoken', () {
       final session = startSession(cardCount: 2);
+
+      _playRound(session, _redSeven, GuessOutcome.miss);
+      _playRound(session, _blueSkip, GuessOutcome.bothRight);
+
+      expect(spoken.last, sessionFinishedPhrase);
+    });
+
+    test('finishes after the chosen number of cards and says the result', () {
+      final session = startSession(cardCount: 2, speaksResult: true);
 
       _playRound(session, _redSeven, GuessOutcome.miss);
       final wasFinishedAfterOneCard = session.isFinished;

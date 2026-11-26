@@ -18,8 +18,8 @@ from innersight.guessing import (
     NEXT_CARD_PHRASE,
     NO_ANSWER_PHRASE,
     NO_CARD_PHRASE,
+    SESSION_FINISHED_PHRASE,
     GuessOutcome,
-    spoken_summary,
 )
 from innersight.speech import VOICE
 
@@ -37,7 +37,7 @@ def phrases() -> list[str]:
         NO_CARD_PHRASE,
         CORRECTION_PHRASE,
         TOO_CLOSE_PHRASE,
-        spoken_summary([]).split(".")[0],
+        SESSION_FINISHED_PHRASE,
     )
     return sorted(
         {part.strip().lower() for prompt in prompts for part in prompt.split(".")}

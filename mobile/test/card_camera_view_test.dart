@@ -166,6 +166,7 @@ void main() {
         detector: _NeverCalledDetector(),
         config: ModelConfig.defaults(),
         minConfidence: 0.5,
+        speaksResult: false,
       ),
       cameras: cameras,
     );

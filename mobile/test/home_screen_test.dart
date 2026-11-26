@@ -94,6 +94,25 @@ void main() {
       expect(find.text('Just read cards aloud'), findsOneWidget);
     });
 
+    testWidgets('does not say the result of a game unless it is turned on', (
+      tester,
+    ) async {
+      await openHomeScreen(tester);
+      await tester.tap(find.text('Advanced'));
+      await tester.pump();
+      final resultSwitch = find.widgetWithText(
+        SwitchListTile,
+        'Say the result when a game is finished',
+      );
+      final wasOnAtFirst = tester.widget<SwitchListTile>(resultSwitch).value;
+
+      await tester.tap(resultSwitch);
+      await tester.pump();
+
+      expect(wasOnAtFirst, isFalse);
+      expect(tester.widget<SwitchListTile>(resultSwitch).value, isTrue);
+    });
+
     testWidgets('hides the advanced settings again on a second tap', (
       tester,
     ) async {

@@ -40,6 +40,7 @@ class GameScreen extends StatefulWidget {
     required this.detector,
     required this.config,
     required this.minConfidence,
+    required this.speaksResult,
   });
 
   final int cardCount;
@@ -48,6 +49,9 @@ class GameScreen extends StatefulWidget {
 
   /// Detections below this confidence are ignored.
   final double minConfidence;
+
+  /// Whether the voice says the count of every answer when the game ends.
+  final bool speaksResult;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -78,6 +82,7 @@ class _GameScreenState extends State<GameScreen> {
       cardCount: widget.cardCount,
       say: _say,
       spokenRanks: widget.config.spokenRanks,
+      speaksResult: widget.speaksResult,
     );
   }
 

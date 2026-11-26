@@ -9,6 +9,7 @@ from innersight.guessing import (
     NEXT_CARD_PHRASE,
     NO_ANSWER_PHRASE,
     NO_CARD_PHRASE,
+    SESSION_FINISHED_PHRASE,
     GuessingSession,
     GuessOutcome,
     GuessRound,
@@ -40,11 +41,11 @@ class FakeClock:
 
 
 def start_session(
-    card_count: int = 2, clock: FakeClock | None = None
+    card_count: int = 2, clock: FakeClock | None = None, speaks_result: bool = False
 ) -> tuple[GuessingSession, list[str]]:
     """Start a session and forget the greeting, so a test sees only what it causes."""
     spoken: list[str] = []
-    session = GuessingSession(card_count, spoken.append, clock or FakeClock())
+    session = GuessingSession(card_count, spoken.append, clock or FakeClock(), speaks_result)
     spoken.clear()
     return session, spoken
 
@@ -288,8 +289,17 @@ def test_finishes_after_the_chosen_number_of_cards() -> None:
     assert session.is_finished
 
 
-def test_says_the_result_when_the_session_finishes() -> None:
+def test_says_only_that_the_session_is_finished_when_the_result_is_not_spoken() -> None:
     session, spoken = start_session(card_count=2)
+
+    play_round(session, RED_SEVEN, GuessOutcome.MISS)
+    play_round(session, BLUE_SKIP, GuessOutcome.BOTH_RIGHT)
+
+    assert spoken[-1] == SESSION_FINISHED_PHRASE
+
+
+def test_says_the_result_when_the_session_finishes_and_the_result_is_spoken() -> None:
+    session, spoken = start_session(card_count=2, speaks_result=True)
 
     play_round(session, RED_SEVEN, GuessOutcome.MISS)
     play_round(session, BLUE_SKIP, GuessOutcome.BOTH_RIGHT)

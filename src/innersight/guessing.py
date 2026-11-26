@@ -18,6 +18,7 @@ NEXT_CARD_PHRASE = "Locked in. Next card"
 LAST_CARD_PHRASE = "Locked in. Last card"
 NO_CARD_PHRASE = "Hold up a card first"
 NO_ANSWER_PHRASE = "Answer first"
+SESSION_FINISHED_PHRASE = "Session finished"
 # Said before the name of the card when the reading of a round is corrected.
 CORRECTION_PHRASE = "Correction"
 
@@ -51,6 +52,8 @@ class GuessingSession:
     often as they like; the last answer counts once they lock it in.
 
     `clock` gives the time in seconds; only the difference between two readings is used.
+    With `speaks_result` the count of every answer is said when the session ends; without it
+    the voice only says that the session is finished.
     """
 
     def __init__(
@@ -58,10 +61,12 @@ class GuessingSession:
         card_count: int,
         say: Callable[[str], None],
         clock: Callable[[], float] = time.monotonic,
+        speaks_result: bool = False,
     ) -> None:
         self.card_count = card_count
         self._say = say
         self._clock = clock
+        self._speaks_result = speaks_result
         self._watcher = CardWatcher()
         self._card: Card | None = None
         self._round_started_at = 0.0
@@ -170,7 +175,7 @@ class GuessingSession:
     def _phrase_after_locking_in(self) -> str:
         cards_left = self.card_count - len(self._rounds)
         if cards_left == 0:
-            return spoken_summary(self._rounds)
+            return spoken_summary(self._rounds) if self._speaks_result else SESSION_FINISHED_PHRASE
         return LAST_CARD_PHRASE if cards_left == 1 else NEXT_CARD_PHRASE
 
 
@@ -181,6 +186,6 @@ def count_outcomes(rounds: Sequence[GuessRound]) -> dict[GuessOutcome, int]:
 
 
 def spoken_summary(rounds: Sequence[GuessRound]) -> str:
-    """What the voice says when a session ends."""
+    """What the voice says when a session ends and the result is to be spoken."""
     counts = ", ".join(f"{outcome} {count}" for outcome, count in count_outcomes(rounds).items())
-    return f"Session finished. {counts}."
+    return f"{SESSION_FINISHED_PHRASE}. {counts}."

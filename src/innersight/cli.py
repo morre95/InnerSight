@@ -52,7 +52,7 @@ def _run_command(args: argparse.Namespace) -> None:
         case "camera":
             _recognize_camera(_load_detector(args), args.index, _create_announcer(args.mute))
         case "game":
-            _play_game(_load_detector(args), args.index, args.cards, args.log)
+            _play_game(_load_detector(args), args.index, args.cards, args.log, args.speak_result)
         case "capture":
             _capture_dataset(args.index, args.dataset)
         case "review":
@@ -119,6 +119,11 @@ def _add_recognition_commands(
         type=Path,
         default=DEFAULT_GUESS_LOG_FILE,
         help="CSV file the rounds are added to (default: %(default)s)",
+    )
+    game.add_argument(
+        "--speak-result",
+        action="store_true",
+        help="say the count of every answer when the session is finished",
     )
 
 
@@ -204,11 +209,17 @@ def _recognize_camera(detector: CardDetector, camera_index: int, announcer: Card
                 break
 
 
-def _play_game(detector: CardDetector, camera_index: int, card_count: int, log_file: Path) -> None:
+def _play_game(
+    detector: CardDetector,
+    camera_index: int,
+    card_count: int,
+    log_file: Path,
+    speaks_result: bool,
+) -> None:
     # Imported here for the same reason as in _create_announcer.
     from innersight.speech import PocketTtsVoice
 
-    session = GuessingSession(card_count, PocketTtsVoice().say)
+    session = GuessingSession(card_count, PocketTtsVoice().say, speaks_result=speaks_result)
     guess_log = GuessLog(log_file, datetime.now())
     with open_camera(camera_index) as frames:
         pictures = play_guessing_game(frames, show_frame_for_key_code, detector, session, guess_log)
