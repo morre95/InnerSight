@@ -110,8 +110,8 @@ void main() {
         'wild draw four',
       );
       expect(
-        spokenName(const CardFace(color: CardColor.wild, rank: 'joker')),
-        'wild joker',
+        spokenName(const CardFace(color: CardColor.wild, rank: 'shuffle')),
+        'wild shuffle',
       );
       expect(
         spokenName(const CardFace(color: CardColor.back, rank: 'back')),
@@ -497,7 +497,7 @@ void main() {
           box: Box(x1: 0, y1: 0, x2: 200, y2: 200),
         ),
         Detection(
-          rank: 'joker',
+          rank: 'shuffle',
           confidence: 0.86,
           box: Box(x1: 0, y1: 0, x2: 200, y2: 200),
         ),
@@ -513,7 +513,7 @@ void main() {
         'red 7',
         'blue skip',
         'back',
-        'wild joker',
+        'wild shuffle',
       ]);
     });
 

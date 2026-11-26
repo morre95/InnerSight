@@ -28,9 +28,9 @@ To add a second dataset:
 uv run innersight capture --index 1 --dataset datasets/phone-cards
 ```
 
-The tool walks through all 57 card designs, the back of a card and one step without a card. The
-last three designs, wild shuffle, wild joker and wild customizable, are only in some decks. For each step it shows a
-card-shaped outline at six different places in the picture:
+The tool walks through all 56 card designs, the back of a card and one step without a card. The
+last two designs, wild shuffle and wild customizable, are only in some decks. For each step it
+shows a card-shaped outline at six different places in the picture:
 
 1. Hold the card so it fills the outline, with your fingers covering as little of it as possible.
 2. Press `SPACE`. It records a short burst of frames and moves the outline.

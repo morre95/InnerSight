@@ -79,10 +79,9 @@ class ModelConfig {
         '+4',
         'back',
         'shuffle',
-        'joker',
         'customizable',
       ],
-      wildRanks: const ['wild', '+4', 'shuffle', 'joker', 'customizable'],
+      wildRanks: const ['wild', '+4', 'shuffle', 'customizable'],
       backRank: 'back',
       spokenRanks: defaultSpokenRanks,
     );
@@ -113,7 +112,6 @@ const Map<String, String> defaultSpokenRanks = {
   '+4': 'draw four',
   'back': 'card back',
   'shuffle': 'shuffle',
-  'joker': 'joker',
   'customizable': 'customizable',
 };
 

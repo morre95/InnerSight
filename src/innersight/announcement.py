@@ -30,7 +30,6 @@ SPOKEN_RANKS = {
     "+4": "draw four",
     "back": "card back",
     "shuffle": "shuffle",
-    "joker": "joker",
     "customizable": "customizable",
 }
 
