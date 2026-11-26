@@ -116,6 +116,19 @@ def test_tells_yellow_from_green_by_brightness_where_their_hues_meet(
     assert classify_card_color(card) is expected_color
 
 
+def test_reads_a_well_lit_olive_card_that_is_dark_beside_its_white_as_green() -> None:
+    card = make_number_card(bgr_from_hue(OLIVE_HUE, value=178))
+
+    assert classify_card_color(card) is CardColor.GREEN
+
+
+def test_reads_a_dimly_lit_olive_card_that_is_as_bright_as_its_white_as_yellow() -> None:
+    card = make_number_card(bgr_from_hue(OLIVE_HUE))
+    dim_card = (card * 0.5).astype(np.uint8)
+
+    assert classify_card_color(dim_card) is CardColor.YELLOW
+
+
 def test_returns_unknown_for_a_crop_split_between_four_colors() -> None:
     assert classify_card_color(make_wild_card()) is CardColor.UNKNOWN
 

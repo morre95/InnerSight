@@ -11,8 +11,9 @@ pixels of the box) is needed on both: a log from the phone in monitor light show
 of the card counted as blue, so that no color dominated, and the step fixed it. Splitting
 the olive hues by brightness is needed on both too: the images in `datasets/phone-cards`
 showed green cards in the hues of yellow, more so out of focus, while their brightness kept
-them apart. The phone measures that brightness against the white of the card, as its
-exposure varies more than a webcam's. The desktop has further steps the phone lacks (a
+them apart. Both measure that brightness against the white of the card: a fixed level
+called a well-lit green card yellow and a dimly lit yellow card green. The desktop has
+further steps the phone lacks (a
 stricter saturation for blue, red reaching down into purple). Port one of them only when a
 log or recorded images from the phone show it is needed, and check in daylight that it does
 not make the good case worse.

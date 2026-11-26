@@ -17,9 +17,11 @@ GREEN_HUES: tuple[HueRange, ...] = ((46, 90),)
 BLUE_HUES: tuple[HueRange, ...] = ((90, 130),)
 
 # A webcam shows a yellow card and a green card in nearly the same olive hue. In these hues the
-# brightness tells them apart: next to the white of the card, yellow is bright and green dark.
+# brightness tells them apart: yellow is nearly as bright as the white of the card, green much
+# darker. A pixel is yellow when it is at least this bright, as a share of that white. Measuring
+# against the white keeps the split right in strong and weak light and out of focus.
 YELLOW_OR_GREEN_HUES: tuple[HueRange, ...] = ((34, 46),)
-MIN_YELLOW_VALUE = 160
+MIN_YELLOW_BRIGHTNESS = 0.8
 
 # A pixel counts as colored when it is neither washed out (white, glare) nor dark (black).
 MIN_SATURATION = 90
@@ -49,11 +51,12 @@ def classify_card_color(card_bgr: np.ndarray) -> CardColor:
 
     That happens when the card is too far away, in poor light, or in glare.
     """
-    hsv = cv2.cvtColor(_crop_center(_balance_white(card_bgr)), cv2.COLOR_BGR2HSV)
+    balanced_bgr, white_level = _balance_white(card_bgr)
+    hsv = cv2.cvtColor(_crop_center(balanced_bgr), cv2.COLOR_BGR2HSV)
     hue, saturation, value = hsv[..., 0], hsv[..., 1], hsv[..., 2]
     is_colored = (saturation >= MIN_SATURATION) & (value >= MIN_VALUE)
     is_yellow_or_green = _is_in_ranges(hue, YELLOW_OR_GREEN_HUES)
-    is_bright = value >= MIN_YELLOW_VALUE
+    is_bright = value >= MIN_YELLOW_BRIGHTNESS * white_level
     is_color = {
         CardColor.RED: _is_in_ranges(hue, RED_HUES),
         CardColor.YELLOW: _is_in_ranges(hue, YELLOW_HUES) | (is_yellow_or_green & is_bright),
@@ -73,16 +76,19 @@ def classify_card_color(card_bgr: np.ndarray) -> CardColor:
     return dominant_color
 
 
-def _balance_white(image_bgr: np.ndarray) -> np.ndarray:
+def _balance_white(image_bgr: np.ndarray) -> tuple[np.ndarray, float]:
     """Remove the tint of the light, so that the white of the card becomes white.
+
+    Returns the image without the tint and the level that the white of the card has in it.
 
     A card has a white border and a white digit. Scaling every color channel so that its
     brightest pixels reach the same level takes away the tint that the light gives them,
     and with it the tint it gives the color of the card.
     """
     white = np.percentile(image_bgr.reshape(-1, 3), WHITE_PERCENTILE, axis=0)
-    gains = white.max() / np.maximum(white, 1)
-    return np.clip(image_bgr * gains, 0, 255).astype(np.uint8)
+    white_level = float(white.max())
+    gains = white_level / np.maximum(white, 1)
+    return np.clip(image_bgr * gains, 0, 255).astype(np.uint8), white_level
 
 
 def _crop_center(image: np.ndarray) -> np.ndarray:
