@@ -8,10 +8,14 @@ the other, and one calibration is not exported for both.
 
 The steps are another matter. Removing the tint of the light (white balance from the brightest
 pixels of the box) is needed on both: a log from the phone in monitor light showed the white
-of the card counted as blue, so that no color dominated, and the step fixed it. The desktop
-has further steps the phone lacks (the olive band split by brightness, a stricter saturation
-for blue, red reaching down into purple). Port one of them only when a log from the phone
-shows it is needed, and check in daylight that it does not make the good case worse.
+of the card counted as blue, so that no color dominated, and the step fixed it. Splitting
+the olive hues by brightness is needed on both too: the images in `datasets/phone-cards`
+showed green cards in the hues of yellow, more so out of focus, while their brightness kept
+them apart. The phone measures that brightness against the white of the card, as its
+exposure varies more than a webcam's. The desktop has further steps the phone lacks (a
+stricter saturation for blue, red reaching down into purple). Port one of them only when a
+log or recorded images from the phone show it is needed, and check in daylight that it does
+not make the good case worse.
 
 The other logic that exists on both sides (watcher, announcer, guessing session, spoken names)
 is still changed on both sides together.

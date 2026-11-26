@@ -13,6 +13,17 @@ const double minDominantShare = 0.6;
 /// channel, the level that this share of the box stays below.
 const double whitePercentile = 0.9;
 
+/// The phone camera shows a yellow card and a green card in nearly the same
+/// olive hues, most of all when it is out of focus. In these hues the
+/// brightness tells them apart: yellow is nearly as bright as the white of the
+/// card, green much darker.
+const int yellowOrGreenHueStart = 22;
+const int yellowOrGreenHueEnd = 48;
+
+/// In the olive hues a pixel is yellow when it is at least this bright,
+/// as a share of the white of the card.
+const double minYellowBrightness = 0.8;
+
 /// Classifies the suit color of a UNO card from a packed RGB image and optional [box].
 ///
 /// Hue is OpenCV-scaled and runs in `0..179`. The tint of the light is removed first, as in
@@ -67,7 +78,7 @@ CardColor classifyCardColor({
   var greenCount = 0;
   var blueCount = 0;
 
-  final (redGain, greenGain, blueGain) = _whiteBalanceGains(
+  final (redGain, greenGain, blueGain, whiteLevel) = _whiteBalance(
     rgbBytes,
     imageWidth,
     x1: x1,
@@ -76,6 +87,7 @@ CardColor classifyCardColor({
     y2: y2,
   );
 
+  final minYellowValue = minYellowBrightness * whiteLevel;
   final rowStride = imageWidth * 3;
   for (var y = centerY1; y < centerY2; y++) {
     final rowOffset = y * rowStride;
@@ -92,9 +104,15 @@ CardColor classifyCardColor({
       coloredPixels++;
       if ((hue >= 0 && hue < 12) || (hue >= 160 && hue < 180)) {
         redCount++;
-      } else if (hue >= 12 && hue < 40) {
+      } else if (hue >= 12 && hue < yellowOrGreenHueStart) {
         yellowCount++;
-      } else if (hue >= 40 && hue < 90) {
+      } else if (hue >= yellowOrGreenHueStart && hue < yellowOrGreenHueEnd) {
+        if (val >= minYellowValue) {
+          yellowCount++;
+        } else {
+          greenCount++;
+        }
+      } else if (hue >= yellowOrGreenHueEnd && hue < 90) {
         greenCount++;
       } else if (hue >= 90 && hue < 140) {
         blueCount++;
@@ -129,13 +147,13 @@ CardColor classifyCardColor({
 }
 
 /// How much to scale red, green and blue to remove the tint of the light, so
-/// that the white of the card becomes white.
+/// that the white of the card becomes white, and the level that white then has.
 ///
 /// A card has a white border and a white digit. Scaling every color channel
 /// so that its brightest pixels reach the same level takes away the tint that
 /// the light gives them, and with it the tint it gives the color of the card.
 /// The whole box is used, as the white border lies outside its middle.
-(double, double, double) _whiteBalanceGains(
+(double, double, double, int) _whiteBalance(
   Uint8List rgbBytes,
   int imageWidth, {
   required int x1,
@@ -165,6 +183,7 @@ CardColor classifyCardColor({
     brightest / math.max(white[0], 1),
     brightest / math.max(white[1], 1),
     brightest / math.max(white[2], 1),
+    brightest,
   );
 }
 

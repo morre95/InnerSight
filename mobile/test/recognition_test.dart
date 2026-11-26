@@ -76,16 +76,19 @@ RecognizedCard _makeCard(
 
 void main() {
   group('ModelConfig & CardFace wording', () {
-    test('loads exported model_config.json with valid ranks and spoken phrases', () {
-      final raw = File('assets/models/model_config.json').readAsStringSync();
-      final config = ModelConfig.fromJsonString(raw);
+    test(
+      'loads exported model_config.json with valid ranks and spoken phrases',
+      () {
+        final raw = File('assets/models/model_config.json').readAsStringSync();
+        final config = ModelConfig.fromJsonString(raw);
 
-      expect(config.inputSize, 640);
-      expect(config.ranks.length, greaterThanOrEqualTo(16));
-      expect(config.ranks.first, '0');
-      expect(config.ranks.contains('back'), isTrue);
-      expect(config.ranks.every(config.spokenRanks.containsKey), isTrue);
-    });
+        expect(config.inputSize, 640);
+        expect(config.ranks.length, greaterThanOrEqualTo(16));
+        expect(config.ranks.first, '0');
+        expect(config.ranks.contains('back'), isTrue);
+        expect(config.ranks.every(config.spokenRanks.containsKey), isTrue);
+      },
+    );
 
     test('formats labels and spoken names identically to Python', () {
       expect(
@@ -139,14 +142,31 @@ void main() {
       expect(_colorOf(card), CardColor.yellow);
     });
 
+    test('reads an olive card that is dark beside its white as green', () {
+      expect(_colorOf(_numberCard(110, 130, 40)), CardColor.green);
+    });
+
+    test('reads an olive card that is as bright as its white as yellow', () {
+      expect(_colorOf(_numberCard(200, 235, 20)), CardColor.yellow);
+    });
+
+    test('tells yellow from green in weak light by the white of the card', () {
+      const weakLight = (0.5, 0.5, 0.5);
+
+      expect(
+        _colorOf(_numberCard(235, 215, 10, light: weakLight)),
+        CardColor.yellow,
+      );
+      expect(
+        _colorOf(_numberCard(110, 130, 40, light: weakLight)),
+        CardColor.green,
+      );
+    });
+
     test('reports unknown on low-saturation or 4-way split crops', () {
       final washedOut = _solidRgb(40, 40, 235, 235, 235);
       expect(
-        classifyCardColor(
-          rgbBytes: washedOut,
-          imageWidth: 40,
-          imageHeight: 40,
-        ),
+        classifyCardColor(rgbBytes: washedOut, imageWidth: 40, imageHeight: 40),
         CardColor.unknown,
       );
 
@@ -200,11 +220,7 @@ void main() {
       isTooClose: true,
     );
 
-    void show(
-      CardAnnouncer announcer,
-      List<RecognizedCard> cards,
-      int frames,
-    ) {
+    void show(CardAnnouncer announcer, List<RecognizedCard> cards, int frames) {
       for (var i = 0; i < frames; i++) {
         announcer.observe(cards);
       }
@@ -428,15 +444,9 @@ void main() {
       expect(detections.length, 2);
       expect(detections[0].rank, '7');
       expect(detections[0].confidence, closeTo(0.91, 1e-5));
-      expect(
-        detections[0].box,
-        const Box(x1: 150, y1: 220, x2: 250, y2: 380),
-      );
+      expect(detections[0].box, const Box(x1: 150, y1: 220, x2: 250, y2: 380));
       expect(detections[1].rank, 'skip');
-      expect(
-        detections[1].box,
-        const Box(x1: 330, y1: 440, x2: 410, y2: 560),
-      );
+      expect(detections[1].box, const Box(x1: 330, y1: 440, x2: 410, y2: 560));
     });
   });
 
