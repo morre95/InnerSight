@@ -13,7 +13,7 @@ from innersight.announcement import (
 )
 from innersight.cards import CARD_BACK, Card, CardFace
 
-FIRST_CARD_PHRASE = "Hold up your first card"
+READY_PHRASE = "The machine is ready"
 NEXT_CARD_PHRASE = "Locked in. Next card"
 LAST_CARD_PHRASE = "Locked in. Last card"
 NO_CARD_PHRASE = "Hold up a card first"
@@ -72,7 +72,7 @@ class GuessingSession:
         self._round_started_at = 0.0
         self._answer: GuessOutcome | None = None
         self._rounds: list[GuessRound] = []
-        say(FIRST_CARD_PHRASE)
+        say(READY_PHRASE)
 
     @property
     def rounds(self) -> Sequence[GuessRound]:

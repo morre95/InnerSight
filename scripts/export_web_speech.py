@@ -13,11 +13,11 @@ from innersight.announcement import TOO_CLOSE_PHRASE, spoken_name
 from innersight.cards import CARD_BACK, DECK
 from innersight.guessing import (
     CORRECTION_PHRASE,
-    FIRST_CARD_PHRASE,
     LAST_CARD_PHRASE,
     NEXT_CARD_PHRASE,
     NO_ANSWER_PHRASE,
     NO_CARD_PHRASE,
+    READY_PHRASE,
     SESSION_FINISHED_PHRASE,
     GuessOutcome,
 )
@@ -30,7 +30,7 @@ MAX_CARD_COUNT = 50
 
 def phrases() -> list[str]:
     prompts = (
-        FIRST_CARD_PHRASE,
+        READY_PHRASE,
         LAST_CARD_PHRASE,
         NEXT_CARD_PHRASE,
         NO_ANSWER_PHRASE,

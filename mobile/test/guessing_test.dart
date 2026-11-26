@@ -81,10 +81,10 @@ void main() {
   });
 
   group('GuessingSession', () {
-    test('asks for the first card when the session starts', () {
+    test('says the machine is ready when the session starts', () {
       GuessingSession(cardCount: 2, say: spoken.add);
 
-      expect(spoken, [firstCardPhrase]);
+      expect(spoken, [readyPhrase]);
     });
 
     test('reads a card aloud once it has settled in view', () {

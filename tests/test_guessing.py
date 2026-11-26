@@ -4,11 +4,11 @@ from innersight.announcement import STABLE_FRAME_COUNT
 from innersight.cards import BACK_RANK, Box, Card, CardColor, Detection
 from innersight.guessing import (
     CORRECTION_SECONDS,
-    FIRST_CARD_PHRASE,
     LAST_CARD_PHRASE,
     NEXT_CARD_PHRASE,
     NO_ANSWER_PHRASE,
     NO_CARD_PHRASE,
+    READY_PHRASE,
     SESSION_FINISHED_PHRASE,
     GuessingSession,
     GuessOutcome,
@@ -63,12 +63,12 @@ def play_round(session: GuessingSession, card: Card, outcome: GuessOutcome) -> N
     session.lock_in()
 
 
-def test_asks_for_the_first_card_when_the_session_starts() -> None:
+def test_says_the_machine_is_ready_when_the_session_starts() -> None:
     spoken: list[str] = []
 
     GuessingSession(2, spoken.append)
 
-    assert spoken == [FIRST_CARD_PHRASE]
+    assert spoken == [READY_PHRASE]
 
 
 def test_reads_a_card_aloud_once_it_has_settled_in_view() -> None:

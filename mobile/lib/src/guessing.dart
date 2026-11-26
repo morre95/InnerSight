@@ -1,7 +1,7 @@
 import 'announcer.dart';
 import 'cards.dart';
 
-const String firstCardPhrase = 'Hold up your first card';
+const String readyPhrase = 'The machine is ready';
 const String nextCardPhrase = 'Locked in. Next card';
 const String lastCardPhrase = 'Locked in. Last card';
 const String noCardPhrase = 'Hold up a card first';
@@ -59,7 +59,7 @@ class GuessingSession {
     this.speaksResult = false,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now {
-    say(firstCardPhrase);
+    say(readyPhrase);
   }
 
   final int cardCount;
