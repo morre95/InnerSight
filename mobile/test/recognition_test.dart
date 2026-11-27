@@ -165,6 +165,15 @@ void main() {
       );
     });
 
+    test('reads a card in light so weak that its white is dark', () {
+      const weakLight = (0.2, 0.2, 0.2);
+
+      expect(
+        _colorOf(_numberCard(225, 25, 10, light: weakLight)),
+        CardColor.red,
+      );
+    });
+
     test('reports unknown on low-saturation or 4-way split crops', () {
       final washedOut = _solidRgb(40, 40, 235, 235, 235);
       expect(

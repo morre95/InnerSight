@@ -4,7 +4,11 @@ import 'dart:typed_data';
 import 'cards.dart';
 
 const int minSaturation = 70;
-const int minValue = 50;
+
+/// A pixel darker than this share of the white of the card is black, not
+/// colored. Measuring against the white keeps the color of a card in weak
+/// light from counting as black.
+const double minBrightness = 0.25;
 const double centerFraction = 0.6;
 const double minColoredFraction = 0.05;
 const double minDominantShare = 0.6;
@@ -87,6 +91,7 @@ CardColor classifyCardColor({
     y2: y2,
   );
 
+  final minColoredValue = minBrightness * whiteLevel;
   final minYellowValue = minYellowBrightness * whiteLevel;
   final rowStride = imageWidth * 3;
   for (var y = centerY1; y < centerY2; y++) {
@@ -98,7 +103,7 @@ CardColor classifyCardColor({
         math.min(255, (rgbBytes[offset + 1] * greenGain).round()),
         math.min(255, (rgbBytes[offset + 2] * blueGain).round()),
       );
-      if (sat < minSaturation || val < minValue) {
+      if (sat < minSaturation || val < minColoredValue) {
         continue;
       }
       coloredPixels++;

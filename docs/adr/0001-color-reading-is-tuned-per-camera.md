@@ -12,12 +12,13 @@ of the card counted as blue, so that no color dominated, and the step fixed it. 
 the olive hues by brightness is needed on both too: the images in `datasets/phone-cards`
 showed green cards in the hues of yellow, more so out of focus, while their brightness kept
 them apart. Both measure that brightness against the white of the card: a fixed level
-called a well-lit green card yellow and a dimly lit yellow card green. The desktop has
+called a well-lit green card yellow and a dimly lit yellow card green. Both also take a pixel
+for black, not colored, when it is dark as a share of that white: with a fixed level,
+darkened copies of the recorded images of both cameras lost their color. The desktop has
 further steps the phone lacks (a
-stricter saturation for blue, red reaching down into purple, saturation limits that
+stricter saturation for blue, red reaching down into purple, and saturation limits that
 are lowered when bright light behind the card washes it out, measured on
-`datasets/own-cards-blurry`, and a limit for dark pixels that is a share of the white of the
-card, measured on darkened copies of `datasets/own-cards`). Port one of them only when a
+`datasets/own-cards-blurry`). Port one of them only when a
 log or recorded images from the phone show it is needed, and check in daylight that it does
 not make the good case worse.
 
