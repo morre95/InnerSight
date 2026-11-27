@@ -19,6 +19,7 @@ runs/
 mobile/assets/models/*.onnx
 
 assets/uno-cards
+assets/uno-color-rank
 
 # Claude Code worktrees are checkouts of this repository
 .claude/worktrees/
