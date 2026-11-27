@@ -17,3 +17,5 @@ datasets/
 runs/
 *.pt
 mobile/assets/models/*.onnx
+
+assets/uno-cards

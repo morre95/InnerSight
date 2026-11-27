@@ -82,6 +82,13 @@ def test_classifies_dimly_lit_card() -> None:
     assert classify_card_color(card) is CardColor.BLUE
 
 
+def test_reads_a_card_in_light_so_weak_that_its_white_is_dark() -> None:
+    card = make_number_card(bgr_from_hue(RED_HUE))
+    weakly_lit_card = (card * 0.2).astype(np.uint8)
+
+    assert classify_card_color(weakly_lit_card) is CardColor.RED
+
+
 def test_ignores_white_glare_on_the_card() -> None:
     card = make_blank_card(bgr_from_hue(GREEN_HUE))
     cv2.circle(card, CARD_CENTER, 70, WHITE, cv2.FILLED)

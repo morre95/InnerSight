@@ -24,8 +24,10 @@ YELLOW_OR_GREEN_HUES: tuple[HueRange, ...] = ((34, 46),)
 MIN_YELLOW_BRIGHTNESS = 0.8
 
 # A pixel counts as colored when it is neither washed out (white, glare) nor dark (black).
+# Dark is measured against the white of the card, as a share of it, so that the black of a card
+# in good light is left out and the color of a card in weak light is not.
 MIN_SATURATION = 90
-MIN_VALUE = 50
+MIN_BRIGHTNESS = 0.26
 
 # The blue of a card is strong. White in the bluish light of a monitor is a weak blue, and
 # would otherwise outnumber the color of a red or yellow card.
@@ -69,7 +71,9 @@ def classify_card_color(card_bgr: np.ndarray) -> CardColor:
     hsv = cv2.cvtColor(_crop_center(balanced_bgr), cv2.COLOR_BGR2HSV)
     hue, saturation, value = hsv[..., 0], hsv[..., 1], hsv[..., 2]
     saturation_scale = _saturation_scale(card_bgr)
-    is_colored = (saturation >= MIN_SATURATION * saturation_scale) & (value >= MIN_VALUE)
+    is_colored = (saturation >= MIN_SATURATION * saturation_scale) & (
+        value >= MIN_BRIGHTNESS * white_level
+    )
     is_yellow_or_green = _is_in_ranges(hue, YELLOW_OR_GREEN_HUES)
     is_bright = value >= MIN_YELLOW_BRIGHTNESS * white_level
     is_strong = saturation >= MIN_BLUE_SATURATION * saturation_scale
