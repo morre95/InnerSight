@@ -23,3 +23,7 @@ class SpeechError(InnerSightError):
 
 class GuessLogWriteError(InnerSightError):
     pass
+
+
+class InboxError(InnerSightError):
+    pass

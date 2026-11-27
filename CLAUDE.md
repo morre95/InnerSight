@@ -24,6 +24,8 @@ uv run ruff check
 uv run ruff format --check
 ```
 
+The ruff commands also cover `server/`. Its tests run from there: `cd server && uv run pytest`.
+
 Running the app (needs `weights/own-cards.pt`, which is not in git):
 
 ```bash
@@ -139,6 +141,15 @@ labeled with the true rank and the detector's own box, and named `<color>_<rank>
 key (`game_<session start>_r<round>`) alone decides the split: one in `VALIDATION_ONE_IN` is
 held back for validation. A correction is something else: a surer reading replacing the card
 of a round during play.
+
+The phone app stores no pictures. It uploads collected examples to the inbox in `server/`, a
+FastAPI project of its own with its own lockfile and tests (`cd server && uv run pytest`), so
+the server installs nothing of the detector. The inbox treats rank and color as plain words and
+does not know the label format. `innersight pull` (`inbox.py`) lists the examples, shows each
+in a `CollectSession` that starts at the card set in the app, writes the saved ones with
+`save_collected`, and deletes from the server what was saved or discarded. The field names on
+the wire are pinned by `server/contract/example.json`, which the inbox, `tests/test_inbox.py`
+and a Dart test each read; change the three together.
 
 ### Python conventions that are easy to miss
 

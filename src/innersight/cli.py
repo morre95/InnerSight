@@ -2,6 +2,7 @@
 training images."""
 
 import argparse
+import os
 import random
 import sys
 from collections.abc import Callable, Sequence
@@ -13,13 +14,19 @@ import cv2
 from innersight.annotation import draw_cards
 from innersight.announcement import CardAnnouncer
 from innersight.capture import ALL_BURSTS, Burst, CaptureSession
-from innersight.collection import CollectSession, candidates_from_game, save_collected
+from innersight.collection import (
+    CollectSession,
+    accept_suggestions,
+    candidates_from_game,
+    save_collected,
+)
 from innersight.dataset import CardDataset
 from innersight.detector import YoloCardDetector
-from innersight.errors import InnerSightError
+from innersight.errors import InboxError, InnerSightError
 from innersight.game import RoundFrame, play_guessing_game
 from innersight.guess_log import GuessLog
 from innersight.guessing import GuessingSession
+from innersight.inbox import open_inbox, pull_examples
 from innersight.live_view import (
     QUIT_KEY,
     close_window,
@@ -35,6 +42,10 @@ from innersight.review import ReviewSession
 
 DEFAULT_MIN_CONFIDENCE = 0.5
 DEFAULT_DATASET_DIR = Path("datasets/own-cards")
+# The examples in the inbox come from the phone, whose detector is trained on this dataset.
+DEFAULT_PULL_DATASET_DIR = Path("datasets/phone-cards")
+DEFAULT_PULL_LIMIT = 50
+PULL_TOKEN_VARIABLE = "INNERSIGHT_PULL_TOKEN"
 DEFAULT_WEIGHTS_FILE = Path("weights/own-cards.pt")
 DEFAULT_CARD_COUNT = 10
 DEFAULT_GUESS_LOG_FILE = Path("logs/guesses.csv")
@@ -67,6 +78,8 @@ def _run_command(args: argparse.Namespace) -> None:
             _capture_dataset(args.index, args.dataset)
         case "review":
             _review_dataset(args.index, args.dataset)
+        case "pull":
+            _pull_examples(args.server, args.dataset, args.limit, reviews=not args.no_review)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -165,6 +178,29 @@ def _add_dataset_commands(
         "review",
         parents=[camera_options, dataset_options],
         help="look through the recorded images and re-capture the bad ones",
+    )
+    pull = commands.add_parser(
+        "pull",
+        help="fetch the examples collected in the app from the inbox on your server; "
+        f"the pull token is read from {PULL_TOKEN_VARIABLE}",
+    )
+    pull.add_argument("--server", required=True, help="address of the inbox, https://...")
+    pull.add_argument(
+        "--dataset",
+        type=Path,
+        default=DEFAULT_PULL_DATASET_DIR,
+        help="dataset directory (default: %(default)s)",
+    )
+    pull.add_argument(
+        "--limit",
+        type=_positive_int,
+        default=DEFAULT_PULL_LIMIT,
+        help="how many examples to fetch at most (default: %(default)s)",
+    )
+    pull.add_argument(
+        "--no-review",
+        action="store_true",
+        help="save every example as the card set in the app, without showing it first",
     )
 
 
@@ -301,3 +337,22 @@ def _record_bursts(camera_index: int, dataset: CardDataset, bursts: Sequence[Bur
     say = _load_voice()
     with open_camera(camera_index) as frames:
         CaptureSession(frames, show_frame, dataset, random.Random(), say).record(bursts)
+
+
+def _pull_examples(server_url: str, dataset_dir: Path, limit: int, reviews: bool) -> None:
+    token = os.environ.get(PULL_TOKEN_VARIABLE)
+    if not token:
+        raise InboxError(f"Set {PULL_TOKEN_VARIABLE} to the pull token of the inbox")
+    review = CollectSession(show_frame_until_key_code).run if reviews else accept_suggestions
+    try:
+        report = pull_examples(
+            open_inbox(server_url, token), CardDataset(dataset_dir), review, limit
+        )
+    finally:
+        close_window()
+    print(f"Examples saved in {dataset_dir}: {report.saved_count}")
+    print(f"Examples discarded: {report.discarded_count}")
+    if report.undecided_count:
+        print(f"{report.undecided_count} were not decided on and are still in the inbox.")
+    if report.unusable_ids:
+        print(f"These cannot be used and are still in the inbox: {', '.join(report.unusable_ids)}")
