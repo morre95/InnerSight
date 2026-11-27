@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:innersight_mobile/src/announcer.dart';
 import 'package:innersight_mobile/src/card_picture.dart';
 import 'package:innersight_mobile/src/cards.dart';
-import 'package:innersight_mobile/src/frame_prep.dart';
 import 'package:innersight_mobile/src/game_screen.dart';
 import 'package:innersight_mobile/src/guessing.dart';
 import 'package:innersight_mobile/src/result_board.dart';
@@ -361,21 +360,13 @@ void main() {
   group('cropCardPicture', () {
     test('cuts the pixels inside the box out of the frame as RGBA', () {
       // A frame 3 wide and 2 high, where every pixel has its index as red.
-      final frame = PreparedFrame(
-        rgbBytes: Uint8List.fromList([
-          for (var pixel = 0; pixel < 6; pixel++) ...[pixel, 100, 200],
-        ]),
-        uprightWidth: 3,
-        uprightHeight: 2,
-        inputTensor: Float32List(0),
-        inputSize: 640,
-        letterboxScale: 1,
-        padLeft: 0,
-        padTop: 0,
-      );
+      final rgbBytes = Uint8List.fromList([
+        for (var pixel = 0; pixel < 6; pixel++) ...[pixel, 100, 200],
+      ]);
 
       final picture = cropCardPicture(
-        frame,
+        rgbBytes,
+        3,
         const Box(x1: 1, y1: 0, x2: 3, y2: 2),
       );
 

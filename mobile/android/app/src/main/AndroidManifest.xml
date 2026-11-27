@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- To send collected examples to the inbox, when the player has turned that on. -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:label="InnerSight"
