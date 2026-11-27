@@ -168,6 +168,27 @@ every answer and every card. Add `--speak-result` to have the voice say the coun
 in, so you can check that the detector read it correctly. `Q` ends the session early. Every round is added to `logs/guesses.csv`
 with the card the detector read and how sure it was; `--log` chooses another file.
 
+### Collect the cards that were read wrongly
+
+The cards the detector gets wrong in a game are the ones it most needs to train on. Add
+`--collect` to go through the rounds once more when you close the result board:
+
+```bash
+uv run innersight game --cards 10 --collect
+```
+
+Each round is shown as the camera frame it was read in, with the card outlined and the true
+card in the banner, which starts at what the detector read.
+
+- `Up` and `Down` step through the ranks, `Left` and `Right` through the colors.
+- `SPACE` saves the frame as a training example of the true card.
+- `S` skips the round, `B` goes back one round, and `Q`, or closing the window, finishes.
+
+Skip a round where the outline does not fit the card. The examples are written into
+`datasets/own-cards`; `--dataset` chooses another directory. One example in five goes to the
+validation images, so you can tell afterwards whether new weights read these cards better. A
+card the detector does not see at all starts no round, so it cannot be collected this way.
+
 In the phone app, choose the number of cards and press Start game. Swipe up, left, right or
 down for the same answers as the arrow keys, and double-tap to lock in. Its result board shows
 the same pictures of the cards. To have the voice say the counts, turn on "Say the result when a

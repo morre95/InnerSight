@@ -4,7 +4,7 @@ from typing import Protocol
 
 import numpy as np
 
-from innersight.cards import BACK_RANK, WILD_RANKS, Box, Card, CardColor, Detection
+from innersight.cards import Box, Card, CardColor, Detection, fixed_color
 from innersight.color import classify_card_color
 
 # A card whose box is as tall or as wide as this share of the frame does not fit in the view.
@@ -35,15 +35,8 @@ def _fills_the_view(box: Box, frame_bgr: np.ndarray) -> bool:
 
 
 def _read_color(frame_bgr: np.ndarray, detection: Detection) -> CardColor:
-    """Only a number or action card has a color to read from the picture.
-
-    The back looks the same on every card, and a wild card is wild whatever colors it shows.
-    """
-    if detection.rank == BACK_RANK:
-        return CardColor.BACK
-    if detection.rank in WILD_RANKS:
-        return CardColor.WILD
-    return classify_card_color(crop_box(frame_bgr, detection.box))
+    """Only a number or action card has a color to read from the picture."""
+    return fixed_color(detection.rank) or classify_card_color(crop_box(frame_bgr, detection.box))
 
 
 def crop_box(frame_bgr: np.ndarray, box: Box) -> np.ndarray:
