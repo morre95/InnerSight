@@ -1,0 +1,8 @@
+# Caddy gets and renews the certificate for the domain by itself.
+{$INBOX_DOMAIN} {
+	# A request larger than a picture can be is refused before the inbox reads it.
+	request_body {
+		max_size 6MB
+	}
+	reverse_proxy inbox:8000
+}
