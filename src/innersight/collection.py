@@ -141,6 +141,19 @@ class CollectSession:
         )
 
 
+def accept_suggestions(candidates: Sequence[Candidate]) -> CollectResult:
+    """Decide without asking: every candidate is saved as the card it suggests."""
+    return CollectResult(
+        saved=[
+            CollectedExample(
+                candidate.key, candidate.frame, candidate.card.detection.box, candidate.suggested
+            )
+            for candidate in candidates
+        ],
+        skipped=[],
+    )
+
+
 def candidates_from_game(
     round_frames: Sequence[RoundFrame], session_start: datetime
 ) -> list[Candidate]:

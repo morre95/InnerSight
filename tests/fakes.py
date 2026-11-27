@@ -9,6 +9,7 @@ import numpy as np
 
 from innersight.capture import RECORD_KEY, Burst, CaptureSession
 from innersight.dataset import CardDataset
+from innersight.inbox import InboxExample
 
 FRAME_HEIGHT = 48
 FRAME_WIDTH = 64
@@ -51,3 +52,24 @@ def record_bursts(
         random.Random(0),
         say,
     ).record(bursts)
+
+
+class FakeInbox:
+    """Stands in for the inbox on the server: holds examples with their pictures in memory."""
+
+    def __init__(self, examples: Sequence[InboxExample], image: bytes) -> None:
+        self._examples = list(examples)
+        self._image = image
+
+    @property
+    def ids(self) -> list[str]:
+        return [example.id for example in self._examples]
+
+    def list_examples(self, limit: int) -> list[InboxExample]:
+        return self._examples[:limit]
+
+    def fetch_image(self, example_id: str) -> bytes:
+        return self._image
+
+    def delete(self, example_id: str) -> None:
+        self._examples = [example for example in self._examples if example.id != example_id]

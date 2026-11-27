@@ -194,6 +194,25 @@ Skip a round where the outline does not fit the card. The examples are written i
 validation images, so you can tell afterwards whether new weights read these cards better. A
 card the detector does not see at all starts no round, so it cannot be collected this way.
 
+### Fetch the cards collected in the app
+
+The app keeps no pictures. When collecting is turned on there, it sends each frame you mark to
+the inbox on your own server ([server/README.md](server/README.md) tells how to run one). Fetch
+them to this computer with the pull token of the inbox:
+
+```bash
+INNERSIGHT_PULL_TOKEN=... uv run innersight pull --server https://inbox.example.com
+```
+
+Every example is shown first, in the same window as after a desktop game, with the true card
+that was set in the app. `SPACE` saves it, the arrow keys change the true card, and `S`
+discards it. An example leaves the server once it is saved or discarded; quitting with `Q`
+leaves the rest there for the next time. `--no-review` saves all of them without showing them.
+
+The examples are written into `datasets/phone-cards`, the dataset the detector in the app is
+trained on; `--dataset` chooses another. `--limit` is how many are fetched at most, 50 if left
+out.
+
 In the phone app, choose the number of cards and press Start game. Swipe up, left, right or
 down for the same answers as the arrow keys, and double-tap to lock in. Its result board shows
 the same pictures of the cards. To have the voice say the counts, turn on "Say the result when a
