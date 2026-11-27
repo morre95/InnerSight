@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 
 import 'camera_screen.dart';
 import 'cards.dart';
+import 'collect_settings.dart';
+import 'collect_settings_fields.dart';
 import 'detector.dart';
+import 'example_uploader.dart';
 import 'game_screen.dart';
 import 'recognition.dart';
 import 'tts_speaker.dart';
@@ -27,10 +30,17 @@ Future<CardModel> loadPackedCardModel() async {
 
 /// Where a session is set up: choose how many cards to guess, then start.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.loadCardModel = loadPackedCardModel});
+  const HomeScreen({
+    super.key,
+    this.loadCardModel = loadPackedCardModel,
+    this.openCollectSettingsStore = PreferencesCollectSettingsStore.new,
+  });
 
   /// Loads the model once, when the app starts.
   final Future<CardModel> Function() loadCardModel;
+
+  /// Opens what keeps the collect settings until the app is started again.
+  final CollectSettingsStore Function() openCollectSettingsStore;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -43,6 +53,12 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _speaksResult = false;
   bool _showsAdvanced = false;
 
+  late final CollectSettingsStore _collectSettingsStore = widget
+      .openCollectSettingsStore();
+
+  /// Null until the settings are read from where they are kept.
+  CollectSettings? _collectSettings;
+
   /// Loaded once and kept for as long as the app runs, as loading is slow.
   CardModel? _cardModel;
   String? _loadError;
@@ -51,6 +67,50 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     unawaited(_loadCardModel());
+    unawaited(_loadCollectSettings());
+  }
+
+  Future<void> _loadCollectSettings() async {
+    CollectSettings settings;
+    try {
+      settings = await _collectSettingsStore.load();
+    } catch (error, stack) {
+      // Without the saved settings, collecting starts turned off.
+      debugPrint('Collect settings load error: $error\n$stack');
+      settings = const CollectSettings();
+    }
+    if (!mounted) return;
+    setState(() {
+      _collectSettings = settings;
+    });
+  }
+
+  Future<void> _changeCollectSettings(CollectSettings settings) async {
+    setState(() {
+      _collectSettings = settings;
+    });
+    try {
+      await _collectSettingsStore.save(settings);
+    } catch (error, stack) {
+      debugPrint('Collect settings save error: $error\n$stack');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('The collect settings could not be saved.'),
+        ),
+      );
+    }
+  }
+
+  /// Where the frames of misread cards are sent, or null when they are not
+  /// collected.
+  ExampleUploader? _createUploader() {
+    final settings = _collectSettings;
+    if (settings == null || !settings.isReady) return null;
+    return HttpExampleUploader(
+      server: settings.serverUri!,
+      token: settings.token.trim(),
+    );
   }
 
   Future<void> _loadCardModel() async {
@@ -82,44 +142,47 @@ class _HomeScreenState extends State<HomeScreen> {
     final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'InnerSight',
-                textAlign: TextAlign.center,
-                style: textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Guess the card you hold while blindfolded. The voice reads '
-                'the card; swipe to say how your guess went, and double-tap '
-                'to lock it in.',
-                textAlign: TextAlign.center,
-                style: textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 32),
-              Text(
-                '$_cardCount cards',
-                textAlign: TextAlign.center,
-                style: textTheme.titleLarge,
-              ),
-              Slider(
-                value: _cardCount.toDouble(),
-                min: 1,
-                max: maxCardCount.toDouble(),
-                divisions: maxCardCount - 1,
-                label: '$_cardCount',
-                onChanged: (value) => setState(() {
-                  _cardCount = value.round();
-                }),
-              ),
-              const SizedBox(height: 16),
-              ..._buildStartControls(textTheme),
-            ],
+        // Scrolls, as the advanced settings and the keyboard together need
+        // more room than a phone has.
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'InnerSight',
+                  textAlign: TextAlign.center,
+                  style: textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Guess the card you hold while blindfolded. The voice reads '
+                  'the card; swipe to say how your guess went, and double-tap '
+                  'to lock it in.',
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 32),
+                Text(
+                  '$_cardCount cards',
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleLarge,
+                ),
+                Slider(
+                  value: _cardCount.toDouble(),
+                  min: 1,
+                  max: maxCardCount.toDouble(),
+                  divisions: maxCardCount - 1,
+                  label: '$_cardCount',
+                  onChanged: (value) => setState(() {
+                    _cardCount = value.round();
+                  }),
+                ),
+                const SizedBox(height: 16),
+                ..._buildStartControls(textTheme),
+              ],
+            ),
           ),
         ),
       ),
@@ -140,6 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
               config: cardModel.config,
               minConfidence: _minConfidence,
               speaksResult: _speaksResult,
+              uploader: _createUploader(),
             ),
           ),
           icon: const Icon(Icons.play_arrow),
@@ -183,8 +247,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// What most players never need: how sure the model must be of a card,
-  /// saying the result when a game ends, and reading cards aloud without a
-  /// game.
+  /// saying the result when a game ends, collecting the misread cards, and
+  /// reading cards aloud without a game.
   List<Widget> _buildAdvancedControls(
     TextTheme textTheme,
     CardModel cardModel,
@@ -211,6 +275,11 @@ class _HomeScreenState extends State<HomeScreen> {
           _speaksResult = value;
         }),
       ),
+      if (_collectSettings case final collectSettings?)
+        CollectSettingsFields(
+          settings: collectSettings,
+          onChanged: _changeCollectSettings,
+        ),
       FilledButton.tonalIcon(
         onPressed: () => _open(
           CameraRecognitionScreen(

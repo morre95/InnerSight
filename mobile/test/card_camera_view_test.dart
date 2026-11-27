@@ -8,7 +8,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:innersight_mobile/src/announcer.dart';
 import 'package:innersight_mobile/src/card_camera_view.dart';
+import 'package:innersight_mobile/src/card_picture.dart';
 import 'package:innersight_mobile/src/cards.dart';
+import 'package:innersight_mobile/src/example_uploader.dart';
 import 'package:innersight_mobile/src/frame_prep.dart';
 import 'package:innersight_mobile/src/game_screen.dart';
 import 'package:innersight_mobile/src/recognition.dart';
@@ -108,6 +110,25 @@ class _FakeCameraPlatform extends CameraPlatform {
   }
 }
 
+const _redSeven = RecognizedCard(
+  detection: Detection(
+    rank: '7',
+    confidence: 0.9,
+    box: Box(x1: 0, y1: 0, x2: 1, y2: 1),
+  ),
+  color: CardColor.red,
+);
+
+/// Stands in for the inbox: remembers what was sent.
+class _RememberingUploader implements ExampleUploader {
+  final List<(RoundFrame, CardFace)> sent = [];
+
+  @override
+  Future<void> upload(RoundFrame frame, CardFace trueCard) async {
+    sent.add((frame, trueCard));
+  }
+}
+
 class _NeverCalledDetector implements CardDetector {
   @override
   Future<List<Detection>> detect(
@@ -153,8 +174,10 @@ void main() {
 
   Future<_FakeCameraPlatform> openGame(
     WidgetTester tester,
-    List<CameraDescription> cameras,
-  ) {
+    List<CameraDescription> cameras, {
+    int cardCount = 10,
+    ExampleUploader? uploader,
+  }) {
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('flutter_tts'),
       (_) async => null,
@@ -162,14 +185,34 @@ void main() {
     return openScreen(
       tester,
       GameScreen(
-        cardCount: 10,
+        cardCount: cardCount,
         detector: _NeverCalledDetector(),
         config: ModelConfig.defaults(),
         minConfidence: 0.5,
         speaksResult: false,
+        uploader: uploader,
       ),
       cameras: cameras,
     );
+  }
+
+  /// Holds a red 7 up to the camera of the game until it has settled.
+  Future<void> holdUpRedSeven(WidgetTester tester) async {
+    final view = tester.widget<CardCameraView>(find.byType(CardCameraView));
+    final frame = PreparedFrame(
+      rgbBytes: Uint8List.fromList([255, 0, 0]),
+      uprightWidth: 1,
+      uprightHeight: 1,
+      inputTensor: Float32List(3),
+      inputSize: 1,
+      letterboxScale: 1,
+      padLeft: 0,
+      padTop: 0,
+    );
+    for (var i = 0; i < stableFrameCount; i++) {
+      view.onCards(frame, [_redSeven], 0);
+    }
+    await tester.pump();
   }
 
   group('GameScreen', () {
@@ -199,29 +242,7 @@ void main() {
       tester,
     ) async {
       await openGame(tester, [_frontCamera]);
-      final view = tester.widget<CardCameraView>(find.byType(CardCameraView));
-      final frame = PreparedFrame(
-        rgbBytes: Uint8List.fromList([255, 0, 0]),
-        uprightWidth: 1,
-        uprightHeight: 1,
-        inputTensor: Float32List(3),
-        inputSize: 1,
-        letterboxScale: 1,
-        padLeft: 0,
-        padTop: 0,
-      );
-      const card = RecognizedCard(
-        detection: Detection(
-          rank: '7',
-          confidence: 0.9,
-          box: Box(x1: 0, y1: 0, x2: 1, y2: 1),
-        ),
-        color: CardColor.red,
-      );
-      for (var i = 0; i < stableFrameCount; i++) {
-        view.onCards(frame, [card], 0);
-      }
-      await tester.pump();
+      await holdUpRedSeven(tester);
 
       const answers = [
         (LogicalKeyboardKey.arrowUp, 'both right'),
@@ -240,6 +261,38 @@ void main() {
 
       expect(find.text('Card 2 of 10'), findsOneWidget);
       expect(find.text('Answer: -'), findsOneWidget);
+    });
+
+    testWidgets('sends the whole frame of a round when collecting', (
+      tester,
+    ) async {
+      final uploader = _RememberingUploader();
+      await openGame(tester, [_frontCamera], cardCount: 1, uploader: uploader);
+      await holdUpRedSeven(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('red 7'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Send'));
+      await tester.pumpAndSettle();
+
+      final (frame, trueCard) = uploader.sent.single;
+      expect(frame.rgbBytes, [255, 0, 0]);
+      expect(frame.card, _redSeven);
+      expect(trueCard, _redSeven.face);
+    });
+
+    testWidgets('offers to send no round when not collecting', (tester) async {
+      await openGame(tester, [_frontCamera], cardCount: 1);
+      await holdUpRedSeven(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+
+      expect(find.text('red 7'), findsOneWidget);
+      expect(find.byTooltip('Send as a training example'), findsNothing);
     });
   });
 

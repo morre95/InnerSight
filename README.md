@@ -218,6 +218,13 @@ down for the same answers as the arrow keys, and double-tap to lock in. Its resu
 the same pictures of the cards. To have the voice say the counts, turn on "Say the result when a
 game is finished" under Advanced.
 
+To collect the misread cards in the app, turn on "Collect misread cards" under Advanced and
+enter the address and the upload token of your inbox ([server/README.md](server/README.md)).
+On the result board, tap a card the model read wrongly, set the true card with the color and
+rank chips, and press Send. The whole camera frame goes to your server and nothing is stored on
+the phone; a frame that is not sent is gone when you leave the result board. Fetch what you
+sent with `innersight pull`, as described above.
+
 ## Publish the web app
 
 The current web app is public on GitHub Pages. [Play InnerSight](https://morre95.github.io/InnerSight/)
