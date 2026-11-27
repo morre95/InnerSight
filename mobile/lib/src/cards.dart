@@ -92,6 +92,21 @@ class ModelConfig {
   final Set<String> wildRanks;
   final String backRank;
   final Map<String, String> spokenRanks;
+
+  /// The color of a rank that has one color only, and null for a rank in the
+  /// four colors.
+  ///
+  /// The back looks the same on every card, and a wild card is wild whatever
+  /// colors it shows. Mirrors `fixed_color` in `src/innersight/cards.py`.
+  CardColor? fixedColor(String rank) {
+    if (rank == backRank) {
+      return CardColor.back;
+    }
+    if (wildRanks.contains(rank)) {
+      return CardColor.wild;
+    }
+    return null;
+  }
 }
 
 const Map<String, String> defaultSpokenRanks = {
