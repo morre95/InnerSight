@@ -1,0 +1,10 @@
+{
+  "rank": "9",
+  "color": "red",
+  "box": { "x1": 120, "y1": 200, "x2": 360, "y2": 560 },
+  "frame_width": 480,
+  "frame_height": 720,
+  "read_rank": "6",
+  "read_color": "red",
+  "confidence": 0.62
+}
