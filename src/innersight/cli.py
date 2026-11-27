@@ -13,10 +13,11 @@ import cv2
 from innersight.annotation import draw_cards
 from innersight.announcement import CardAnnouncer
 from innersight.capture import ALL_BURSTS, Burst, CaptureSession
+from innersight.collection import CollectSession, candidates_from_game, save_collected
 from innersight.dataset import CardDataset
 from innersight.detector import YoloCardDetector
 from innersight.errors import InnerSightError
-from innersight.game import play_guessing_game
+from innersight.game import RoundFrame, play_guessing_game
 from innersight.guess_log import GuessLog
 from innersight.guessing import GuessingSession
 from innersight.live_view import (
@@ -26,6 +27,7 @@ from innersight.live_view import (
     show_frame,
     show_frame_for_key_code,
     show_frame_until_key,
+    show_frame_until_key_code,
 )
 from innersight.recognition import CardDetector, recognize_cards
 from innersight.result_board import draw_result_board
@@ -53,7 +55,14 @@ def _run_command(args: argparse.Namespace) -> None:
         case "camera":
             _recognize_camera(_load_detector(args), args.index, _create_announcer(args.mute))
         case "game":
-            _play_game(_load_detector(args), args.index, args.cards, args.log, args.speak_result)
+            _play_game(
+                _load_detector(args),
+                args.index,
+                args.cards,
+                args.log,
+                args.speak_result,
+                collect_into=args.dataset if args.collect else None,
+            )
         case "capture":
             _capture_dataset(args.index, args.dataset)
         case "review":
@@ -67,14 +76,22 @@ def _parse_args() -> argparse.Namespace:
     camera_options.add_argument(
         "--index", type=int, default=0, help="camera device (default: %(default)s)"
     )
-    _add_recognition_commands(commands, camera_options)
-    _add_dataset_commands(commands, camera_options)
+    dataset_options = argparse.ArgumentParser(add_help=False)
+    dataset_options.add_argument(
+        "--dataset",
+        type=Path,
+        default=DEFAULT_DATASET_DIR,
+        help="dataset directory (default: %(default)s)",
+    )
+    _add_recognition_commands(commands, camera_options, dataset_options)
+    _add_dataset_commands(commands, camera_options, dataset_options)
     return parser.parse_args()
 
 
 def _add_recognition_commands(
     commands: "argparse._SubParsersAction[argparse.ArgumentParser]",
     camera_options: argparse.ArgumentParser,
+    dataset_options: argparse.ArgumentParser,
 ) -> None:
     detector_options = argparse.ArgumentParser(add_help=False)
     detector_options.add_argument(
@@ -106,7 +123,7 @@ def _add_recognition_commands(
 
     game = commands.add_parser(
         "game",
-        parents=[detector_options, camera_options],
+        parents=[detector_options, camera_options, dataset_options],
         help="guess the cards you hold while blindfolded, and score yourself with the arrow keys",
     )
     game.add_argument(
@@ -126,19 +143,19 @@ def _add_recognition_commands(
         action="store_true",
         help="say the count of every answer when the session is finished",
     )
+    game.add_argument(
+        "--collect",
+        action="store_true",
+        help="after the session, set the true card of the rounds that were read wrongly and "
+        "save them into the dataset as training examples",
+    )
 
 
 def _add_dataset_commands(
     commands: "argparse._SubParsersAction[argparse.ArgumentParser]",
     camera_options: argparse.ArgumentParser,
+    dataset_options: argparse.ArgumentParser,
 ) -> None:
-    dataset_options = argparse.ArgumentParser(add_help=False)
-    dataset_options.add_argument(
-        "--dataset",
-        type=Path,
-        default=DEFAULT_DATASET_DIR,
-        help="dataset directory (default: %(default)s)",
-    )
     commands.add_parser(
         "capture",
         parents=[camera_options, dataset_options],
@@ -221,9 +238,13 @@ def _play_game(
     card_count: int,
     log_file: Path,
     speaks_result: bool,
+    collect_into: Path | None,
 ) -> None:
+    """Play a session and show its result. With a dataset to collect into, the rounds are
+    then gone through once more, to save the misread ones as training examples."""
     session = GuessingSession(card_count, _load_voice(), speaks_result=speaks_result)
-    guess_log = GuessLog(log_file, datetime.now())
+    started_at = datetime.now()
+    guess_log = GuessLog(log_file, started_at)
     with open_camera(camera_index) as frames:
         round_frames = play_guessing_game(
             frames, show_frame_for_key_code, detector, session, guess_log
@@ -234,8 +255,20 @@ def _play_game(
     try:
         pictures = [round_frame.picture for round_frame in round_frames]
         show_frame_until_key(draw_result_board(session.rounds, pictures))
+        if collect_into is not None:
+            _collect_examples(round_frames, started_at, collect_into)
     finally:
         close_window()
+
+
+def _collect_examples(
+    round_frames: Sequence[RoundFrame], started_at: datetime, dataset_dir: Path
+) -> None:
+    candidates = candidates_from_game(round_frames, started_at)
+    examples = CollectSession(show_frame_until_key_code).run(candidates).saved
+    if examples:
+        save_collected(CardDataset(dataset_dir), examples)
+    print(f"Saved {len(examples)} of {len(candidates)} cards as examples in {dataset_dir}")
 
 
 def _capture_dataset(camera_index: int, dataset_dir: Path) -> None:

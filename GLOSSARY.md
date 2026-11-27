@@ -24,6 +24,17 @@ A reading settles when it has stayed the same for several frames in a row. A car
 only once it has settled, and counts as taken away only once its absence has settled.
 _Avoid_: Stabilize, confirm, debounce
 
+**True card**:
+The card a frame really shows, as set by a person. It differs from the reading when the
+detector read the card wrongly.
+_Avoid_: Correct card, ground truth, corrected card (a correction is a surer reading replacing
+the card of a round)
+
+**Collected example**:
+A frame from a game, saved as a training example labeled with its true card and the box it was
+read in.
+_Avoid_: Hard example, misread, sample
+
 **Too close**:
 A card is too close when it is as tall or as wide as the frame, so part of it may be out of
 view.

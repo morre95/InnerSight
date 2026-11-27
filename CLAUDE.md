@@ -129,6 +129,17 @@ corrected; the input layer keeps the frame that card was read in for every locke
 the desktop that is the whole frame (`RoundFrame` in `game.py`), on the phone the card cropped
 from it. The result board shows the card beside the round. The frames are kept in memory only.
 
+### Collecting misread cards
+
+With `game --collect`, `CollectSession` (`collection.py`) goes through the rounds after the
+result board. The user sets the true card of a round with the arrow keys (`TrueCardPicker`)
+and saves or skips it. The session only returns decisions; `save_collected` writes them, so
+deciding again on a round cannot leave two files. A collected example is the whole frame,
+labeled with the true rank and the detector's own box, and named `<color>_<rank>_<key>`. The
+key (`game_<session start>_r<round>`) alone decides the split: one in `VALIDATION_ONE_IN` is
+held back for validation. A correction is something else: a surer reading replacing the card
+of a round during play.
+
 ### Python conventions that are easy to miss
 
 - Interactive loops take `frames` (an iterator) and `show` (a callable that displays a frame and

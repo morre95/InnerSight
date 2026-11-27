@@ -29,6 +29,18 @@ BACK_RANK = "back"
 RANKS = (*COLORED_RANKS, *STANDARD_WILD_RANKS, BACK_RANK, *EXTRA_WILD_RANKS)
 
 
+def fixed_color(rank: str) -> CardColor | None:
+    """The color of a rank that has one color only, and None for a rank in the four colors.
+
+    The back looks the same on every card, and a wild card is wild whatever colors it shows.
+    """
+    if rank == BACK_RANK:
+        return CardColor.BACK
+    if rank in WILD_RANKS:
+        return CardColor.WILD
+    return None
+
+
 @dataclass(frozen=True)
 class CardFace:
     """What one side of a card shows: one of the 56 designs in a UNO deck, or the back."""
