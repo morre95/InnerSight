@@ -94,7 +94,11 @@ class _GameScreenState extends State<GameScreen> {
     setState(() {
       final roundCard = _session.observe(cards);
       if (roundCard != null) {
-        _picture = cropCardPicture(frame, roundCard.detection.box);
+        _picture = cropCardPicture(
+          frame.rgbBytes,
+          frame.uprightWidth,
+          roundCard.detection.box,
+        );
       }
     });
   }

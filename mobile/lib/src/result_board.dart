@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -128,14 +129,7 @@ class _CardPictureViewState extends State<CardPictureView> {
   @override
   void initState() {
     super.initState();
-    final picture = widget.picture;
-    ui.decodeImageFromPixels(
-      picture.rgbaBytes,
-      picture.width,
-      picture.height,
-      ui.PixelFormat.rgba8888,
-      _onDecoded,
-    );
+    unawaited(decodePicture(widget.picture).then(_onDecoded));
   }
 
   void _onDecoded(ui.Image image) {
