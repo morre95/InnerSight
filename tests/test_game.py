@@ -7,17 +7,10 @@ from fakes import BLACK_FRAME, ScriptedWindow
 
 from innersight.announcement import STABLE_FRAME_COUNT
 from innersight.cards import Box, Detection
-from innersight.game import (
-    DOWN_KEYS,
-    LEFT_KEYS,
-    LOCK_IN_KEY,
-    RIGHT_KEYS,
-    UP_KEYS,
-    play_guessing_game,
-)
+from innersight.game import LOCK_IN_KEY, RoundFrame, play_guessing_game
 from innersight.guess_log import GuessLog
 from innersight.guessing import GuessingSession, GuessOutcome
-from innersight.live_view import QUIT_KEY
+from innersight.live_view import DOWN_KEYS, LEFT_KEYS, QUIT_KEY, RIGHT_KEYS, UP_KEYS
 
 NO_KEY = -1
 UP, LEFT, RIGHT, DOWN = UP_KEYS[0], LEFT_KEYS[0], RIGHT_KEYS[0], DOWN_KEYS[0]
@@ -105,32 +98,45 @@ def test_logs_every_round_as_it_is_locked_in(tmp_path: Path) -> None:
     assert log_lines[1:] == ["2026-11-25T00:00:00,1,wild,0.900,both right"]
 
 
-def test_returns_a_picture_of_every_locked_card_cut_from_its_frame(tmp_path: Path) -> None:
-    frame = BLACK_FRAME.copy()
-    box = WILD_CARD.box
-    frame[box.y1 : box.y2, box.x1 : box.x2] = WHITE
+def play_one_round_on(tmp_path: Path, frame: np.ndarray) -> list[RoundFrame]:
     session = GuessingSession(1, say=lambda phrase: None)
     guess_log = GuessLog(tmp_path / "guesses.csv", datetime(2026, 11, 25))
     window = ScriptedWindow(*CARD_SETTLES, UP, LOCK_IN_KEY)
-
-    pictures = play_guessing_game(
+    return play_guessing_game(
         itertools.repeat(frame), window, CardInEveryFrame(), session, guess_log
     )
 
-    assert [picture.shape for picture in pictures] == [(10, 10, 3)]
-    assert (pictures[0] == WHITE).all()
+
+def test_returns_the_frame_and_the_card_of_every_locked_round(tmp_path: Path) -> None:
+    gray_frame = np.full_like(BLACK_FRAME, 128)
+
+    round_frames = play_one_round_on(tmp_path, gray_frame)
+
+    assert [round_frame.card.detection for round_frame in round_frames] == [WILD_CARD]
+    assert (round_frames[0].frame == gray_frame).all()
 
 
-def test_returns_no_picture_of_a_card_that_was_not_locked_in(tmp_path: Path) -> None:
+def test_cuts_the_picture_of_a_round_from_its_frame(tmp_path: Path) -> None:
+    frame = BLACK_FRAME.copy()
+    box = WILD_CARD.box
+    frame[box.y1 : box.y2, box.x1 : box.x2] = WHITE
+
+    round_frames = play_one_round_on(tmp_path, frame)
+
+    assert round_frames[0].picture.shape == (10, 10, 3)
+    assert (round_frames[0].picture == WHITE).all()
+
+
+def test_returns_no_frame_of_a_card_that_was_not_locked_in(tmp_path: Path) -> None:
     session = GuessingSession(2, say=lambda phrase: None)
     guess_log = GuessLog(tmp_path / "guesses.csv", datetime(2026, 11, 25))
     window = ScriptedWindow(*CARD_SETTLES, UP, QUIT_KEY)
 
-    pictures = play_guessing_game(
+    round_frames = play_guessing_game(
         itertools.repeat(BLACK_FRAME), window, CardInEveryFrame(), session, guess_log
     )
 
-    assert pictures == []
+    assert round_frames == []
 
 
 def test_shows_the_round_and_the_answer_above_the_preview(tmp_path: Path) -> None:

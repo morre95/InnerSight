@@ -225,11 +225,14 @@ def _play_game(
     session = GuessingSession(card_count, _load_voice(), speaks_result=speaks_result)
     guess_log = GuessLog(log_file, datetime.now())
     with open_camera(camera_index) as frames:
-        pictures = play_guessing_game(frames, show_frame_for_key_code, detector, session, guess_log)
+        round_frames = play_guessing_game(
+            frames, show_frame_for_key_code, detector, session, guess_log
+        )
     if not session.rounds:
         return
     print(f"The rounds are logged in {log_file}")
     try:
+        pictures = [round_frame.picture for round_frame in round_frames]
         show_frame_until_key(draw_result_board(session.rounds, pictures))
     finally:
         close_window()
