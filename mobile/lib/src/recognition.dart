@@ -41,22 +41,18 @@ bool _fillsTheView(Box box, PreparedFrame frame) {
       box.width >= fullViewFraction * frame.uprightWidth;
 }
 
-/// Determines the [CardColor] for a single [detection].
+/// Determines the [CardColor] for a single [detection]. Only a number or
+/// action card has a color to read from the picture.
 CardColor readCardColor(
   PreparedFrame frame,
   Detection detection,
   ModelConfig config,
 ) {
-  if (detection.rank == config.backRank) {
-    return CardColor.back;
-  }
-  if (config.wildRanks.contains(detection.rank)) {
-    return CardColor.wild;
-  }
-  return classifyCardColor(
-    rgbBytes: frame.rgbBytes,
-    imageWidth: frame.uprightWidth,
-    imageHeight: frame.uprightHeight,
-    box: detection.box,
-  );
+  return config.fixedColor(detection.rank) ??
+      classifyCardColor(
+        rgbBytes: frame.rgbBytes,
+        imageWidth: frame.uprightWidth,
+        imageHeight: frame.uprightHeight,
+        box: detection.box,
+      );
 }

@@ -118,6 +118,15 @@ void main() {
         'card back',
       );
     });
+
+    test('only a wild rank and the back have a color of their own', () {
+      final config = ModelConfig.defaults();
+
+      expect(config.fixedColor('wild'), CardColor.wild);
+      expect(config.fixedColor('+4'), CardColor.wild);
+      expect(config.fixedColor('back'), CardColor.back);
+      expect(config.fixedColor('7'), isNull);
+    });
   });
 
   group('HSV color classification', () {
