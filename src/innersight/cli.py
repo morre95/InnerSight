@@ -4,6 +4,7 @@ training images."""
 import argparse
 import random
 import sys
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from pathlib import Path
 
@@ -11,7 +12,7 @@ import cv2
 
 from innersight.annotation import draw_cards
 from innersight.announcement import CardAnnouncer
-from innersight.capture import ALL_BURSTS, CaptureSession
+from innersight.capture import ALL_BURSTS, Burst, CaptureSession
 from innersight.dataset import CardDataset
 from innersight.detector import YoloCardDetector
 from innersight.errors import InnerSightError
@@ -189,11 +190,16 @@ def _recognize_image(detector: CardDetector, image_path: Path, output_path: Path
 def _create_announcer(is_muted: bool) -> CardAnnouncer:
     if is_muted:
         return CardAnnouncer(_stay_silent)
+    return CardAnnouncer(_load_voice())
+
+
+def _load_voice() -> Callable[[str], None]:
+    """Return the function that says a phrase aloud."""
     # Imported here because loading the audio library and the speech model is slow,
-    # and the other commands never speak.
+    # and not every command speaks.
     from innersight.speech import PocketTtsVoice
 
-    return CardAnnouncer(PocketTtsVoice().say)
+    return PocketTtsVoice().say
 
 
 def _stay_silent(phrase: str) -> None:
@@ -216,10 +222,7 @@ def _play_game(
     log_file: Path,
     speaks_result: bool,
 ) -> None:
-    # Imported here for the same reason as in _create_announcer.
-    from innersight.speech import PocketTtsVoice
-
-    session = GuessingSession(card_count, PocketTtsVoice().say, speaks_result=speaks_result)
+    session = GuessingSession(card_count, _load_voice(), speaks_result=speaks_result)
     guess_log = GuessLog(log_file, datetime.now())
     with open_camera(camera_index) as frames:
         pictures = play_guessing_game(frames, show_frame_for_key_code, detector, session, guess_log)
@@ -238,8 +241,7 @@ def _capture_dataset(camera_index: int, dataset_dir: Path) -> None:
     if not missing_bursts:
         print(f"Everything is recorded in {dataset_dir}. Use 'innersight review' to redo images.")
         return
-    with open_camera(camera_index) as frames:
-        CaptureSession(frames, show_frame, dataset, random.Random()).record(missing_bursts)
+    _record_bursts(camera_index, dataset, missing_bursts)
     print(f"Recorded images are in {dataset_dir}. Run this again to record what is missing.")
 
 
@@ -256,5 +258,10 @@ def _review_dataset(camera_index: int, dataset_dir: Path) -> None:
         print("Nothing was marked for re-capture.")
         return
     print(f"Re-capturing {len(rejected_bursts)} of {len(recorded_bursts)} recorded positions.")
+    _record_bursts(camera_index, dataset, rejected_bursts)
+
+
+def _record_bursts(camera_index: int, dataset: CardDataset, bursts: Sequence[Burst]) -> None:
+    say = _load_voice()
     with open_camera(camera_index) as frames:
-        CaptureSession(frames, show_frame, dataset, random.Random()).record(rejected_bursts)
+        CaptureSession(frames, show_frame, dataset, random.Random(), say).record(bursts)

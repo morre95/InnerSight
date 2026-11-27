@@ -8,8 +8,9 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
+from innersight.announcement import spoken_name
 from innersight.banner import add_banner
-from innersight.cards import BACK_RANK, DECK, Box
+from innersight.cards import BACK_RANK, CARD_BACK, DECK, Box
 from innersight.dataset import TRAIN_SPLIT, VALIDATION_SPLIT, CardDataset, LabeledCard
 from innersight.live_view import QUIT_KEY
 
@@ -40,6 +41,7 @@ class CaptureStep:
 
     name: str
     title: str
+    spoken_name: str
     prompt: str
     rank: str | None
 
@@ -49,6 +51,7 @@ CAPTURE_STEPS: tuple[CaptureStep, ...] = (
         CaptureStep(
             name=f"{face.color}_{face.rank}",
             title=face.label,
+            spoken_name=spoken_name(face),
             prompt=f"Hold up: {face.label}",
             rank=face.rank,
         )
@@ -57,12 +60,14 @@ CAPTURE_STEPS: tuple[CaptureStep, ...] = (
     CaptureStep(
         name="card_back",
         title="card back",
+        spoken_name=spoken_name(CARD_BACK),
         prompt="Hold up: the back of any card",
         rank=BACK_RANK,
     ),
     CaptureStep(
         name="background",
         title="no card",
+        spoken_name="no card",
         prompt="Show no card: only you, your hands, the room",
         rank=None,
     ),
@@ -104,7 +109,10 @@ ALL_BURSTS: tuple[Burst, ...] = tuple(
 
 
 class CaptureSession:
-    """Walks the user through recording bursts with the camera."""
+    """Walks the user through recording bursts with the camera.
+
+    It says which card to hold up every time it is the turn of a new one.
+    """
 
     def __init__(
         self,
@@ -112,21 +120,27 @@ class CaptureSession:
         show: Callable[[np.ndarray], int],
         dataset: CardDataset,
         rng: random.Random,
+        say: Callable[[str], None],
     ) -> None:
         """`show` displays a preview frame and returns the code of the key pressed in it."""
         self._frames = frames
         self._show = show
         self._dataset = dataset
         self._rng = rng
+        self._say = say
 
     def record(self, bursts: Sequence[Burst]) -> None:
         """Record the bursts in order, replacing the frames a burst already has."""
         self._dataset.write_config()
         frame_height, frame_width = next(self._frames).shape[:2]
         skipped_step = None
+        spoken_step = None
         for number, burst in enumerate(bursts, start=1):
             if burst.step == skipped_step:
                 continue
+            if burst.step != spoken_step:
+                self._say(burst.step.spoken_name)
+                spoken_step = burst.step
             target = self._choose_target(burst.step, frame_width, frame_height)
             key = self._wait_for_key(target, _describe_burst(burst, number, len(bursts)))
             if key == QUIT_KEY:

@@ -2,7 +2,7 @@
 
 import itertools
 import random
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import numpy as np
@@ -29,11 +29,16 @@ class ScriptedWindow:
         return self._keys.pop(0) if len(self._keys) > 1 else self._keys[0]
 
 
+def stay_silent(phrase: str) -> None:
+    """Stands in for the voice in the tests that do not look at what is said."""
+
+
 def record_bursts(
     dataset_dir: Path,
     bursts: Sequence[Burst],
     window: ScriptedWindow | None = None,
     camera_frame: np.ndarray = BLACK_FRAME,
+    say: Callable[[str], None] = stay_silent,
 ) -> None:
     """Run a capture session on a camera that always delivers the same frame.
 
@@ -44,4 +49,5 @@ def record_bursts(
         window or ScriptedWindow(RECORD_KEY),
         CardDataset(dataset_dir),
         random.Random(0),
+        say,
     ).record(bursts)

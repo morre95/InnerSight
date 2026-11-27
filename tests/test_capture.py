@@ -22,6 +22,8 @@ from innersight.live_view import QUIT_KEY
 
 FRAMES_PER_STEP_IN_TRAIN = (POSITIONS_PER_STEP - 1) * FRAMES_PER_POSITION
 RED_ONE_SECOND_POSITION = ALL_BURSTS[POSITIONS_PER_STEP + 1]
+CARD_BACK_BURST = next(burst for burst in ALL_BURSTS if burst.step.name == "card_back")
+BACKGROUND_BURST = next(burst for burst in ALL_BURSTS if burst.step.name == "background")
 
 
 def image_names(dataset_dir: Path, split: str) -> list[str]:
@@ -114,6 +116,39 @@ def test_skip_key_skips_every_position_of_that_card(tmp_path: Path) -> None:
 
     expected_images = [f"red_1_p0_f{frame}.jpg" for frame in range(FRAMES_PER_POSITION)]
     assert image_names(tmp_path, "train") == expected_images
+
+
+def test_says_the_color_and_rank_of_a_card_once_when_its_turn_comes(tmp_path: Path) -> None:
+    red_zero_and_first_of_red_one = ALL_BURSTS[: POSITIONS_PER_STEP + 1]
+    phrases: list[str] = []
+
+    record_bursts(tmp_path, red_zero_and_first_of_red_one, say=phrases.append)
+
+    assert phrases == ["red zero", "red one"]
+
+
+def test_says_the_next_card_after_a_card_is_skipped(tmp_path: Path) -> None:
+    phrases: list[str] = []
+
+    record_bursts(tmp_path, ALL_BURSTS, ScriptedWindow(SKIP_KEY, QUIT_KEY), say=phrases.append)
+
+    assert phrases == ["red zero", "red one"]
+
+
+def test_says_card_back_when_the_back_is_due(tmp_path: Path) -> None:
+    phrases: list[str] = []
+
+    record_bursts(tmp_path, [CARD_BACK_BURST], say=phrases.append)
+
+    assert phrases == ["card back"]
+
+
+def test_says_no_card_when_the_background_is_due(tmp_path: Path) -> None:
+    phrases: list[str] = []
+
+    record_bursts(tmp_path, [BACKGROUND_BURST], say=phrases.append)
+
+    assert phrases == ["no card"]
 
 
 @pytest.mark.parametrize("seed", range(50))
