@@ -1,7 +1,7 @@
 """Live camera input and the preview window that shows it."""
 
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 
 import cv2
@@ -18,7 +18,15 @@ WINDOW_TITLE = "InnerSight"
 QUIT_KEY = ord("q")
 # What OpenCV reports, masked to one byte, when no key was pressed.
 NO_KEY = 255
+# What OpenCV reports as the full code when no key was pressed.
+NO_KEY_CODE = -1
 KEY_POLL_MILLISECONDS = 50
+
+# The full key codes of the arrow keys differ between systems: Linux, Windows, macOS.
+UP_KEYS = (65362, 2490368, 63232)
+LEFT_KEYS = (65361, 2424832, 63234)
+RIGHT_KEYS = (65363, 2555904, 63235)
+DOWN_KEYS = (65364, 2621440, 63233)
 
 
 @contextmanager
@@ -58,10 +66,23 @@ def show_frame_until_key(frame_bgr: np.ndarray) -> int:
 
     Closing the window counts as pressing the quit key.
     """
+    return _show_until(frame_bgr, lambda: cv2.waitKey(KEY_POLL_MILLISECONDS) & 0xFF, NO_KEY)
+
+
+def show_frame_until_key_code(frame_bgr: np.ndarray) -> int:
+    """Show the frame and wait until a key is pressed in the window; return its full code.
+
+    The full code tells the arrow keys apart from the letters. Closing the window counts as
+    pressing the quit key.
+    """
+    return _show_until(frame_bgr, lambda: cv2.waitKeyEx(KEY_POLL_MILLISECONDS), NO_KEY_CODE)
+
+
+def _show_until(frame_bgr: np.ndarray, read_key: Callable[[], int], no_key: int) -> int:
     cv2.imshow(WINDOW_TITLE, frame_bgr)
     while True:
-        key = cv2.waitKey(KEY_POLL_MILLISECONDS) & 0xFF
-        if key != NO_KEY:
+        key = read_key()
+        if key != no_key:
             return key
         if not _is_window_open():
             return QUIT_KEY

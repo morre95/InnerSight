@@ -125,9 +125,9 @@ locked round to a CSV through `GuessLog`; `game_screen.dart` maps swipes (`swipe
 double-tap. The phone has no file log; its result board shows the same data.
 
 The session holds no images. `observe` returns the card of the round when it starts or is
-corrected; the input layer crops that card from the frame and keeps one picture for every
-locked round, which the result board shows beside the round. The pictures are kept in memory
-only.
+corrected; the input layer keeps the frame that card was read in for every locked round. On
+the desktop that is the whole frame (`RoundFrame` in `game.py`), on the phone the card cropped
+from it. The result board shows the card beside the round. The frames are kept in memory only.
 
 ### Python conventions that are easy to miss
 
@@ -137,7 +137,7 @@ only.
   shape.
 - `show_frame` returns a one-byte key code, which cannot tell arrow keys from letters.
   `show_frame_for_key_code` returns the full `waitKeyEx` code and is what the game uses. Arrow
-  codes differ by platform (`game.py`).
+  codes differ by platform (`live_view.py`).
 - Failures meant for the user are subclasses of `InnerSightError` (`errors.py`); `cli.main`
   prints them without a traceback.
 - `speech.py` is imported lazily inside `cli.py` because loading the TTS model is slow. Keep it
