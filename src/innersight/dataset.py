@@ -47,6 +47,11 @@ class CardDataset:
     def has_example(self, split: str, name: str) -> bool:
         return self._image_file(split, name).is_file()
 
+    def example_names(self, split: str) -> list[str]:
+        """The names of all examples in the split, recorded and collected alike, in order."""
+        image_dir = self._image_file(split, "any").parent
+        return sorted(image_file.stem for image_file in image_dir.glob("*.jpg"))
+
     def write_example(
         self, split: str, name: str, frame_bgr: np.ndarray, cards: Sequence[LabeledCard]
     ) -> None:

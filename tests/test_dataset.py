@@ -105,3 +105,17 @@ def test_turns_a_frame_upside_down_with_the_card_still_labeled_where_it_is() -> 
     assert turned_cards == [LabeledCard(rank="6", box=Box(140, 55, 190, 95))]
     assert (turned_frame[55:95, 140:190] == white).all()
     assert turned_frame.sum() == frame.sum()
+
+
+def test_lists_the_examples_of_a_split_by_name(tmp_path: Path) -> None:
+    dataset = CardDataset(tmp_path)
+    for name in ("red_skip_p0_f0", "blue_7_game_20261127T205301_r1"):
+        dataset.write_example(TRAIN_SPLIT, name, make_frame(), [SKIP_CARD_IN_THE_MIDDLE])
+
+    names = dataset.example_names(TRAIN_SPLIT)
+
+    assert names == ["blue_7_game_20261127T205301_r1", "red_skip_p0_f0"]
+
+
+def test_lists_no_examples_for_a_split_that_does_not_exist(tmp_path: Path) -> None:
+    assert CardDataset(tmp_path).example_names(TRAIN_SPLIT) == []

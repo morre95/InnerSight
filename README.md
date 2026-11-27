@@ -107,6 +107,11 @@ uv run python scripts/measure_rank_reading.py --weights weights/own-cards.pt
 uv run python scripts/measure_rank_reading.py --weights weights/phone-cards.pt --dataset datasets/phone-cards
 ```
 
+The images collected in games with `--collect` are trained on like the recorded ones. The
+measuring counts them apart, under "Collected in games": they are cards that the weights of
+that time read wrongly or unsurely, so old weights do badly on them, and new weights should do
+better.
+
 `*.pt` files are ignored by git, so the weights stay on this machine. To try other weights
 without replacing these, add `--weights path/to/best.pt` to the commands below.
 
