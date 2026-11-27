@@ -45,6 +45,15 @@ def test_does_not_start_with_a_token_short_enough_to_guess(
         Settings()
 
 
+def test_does_not_show_a_token_that_it_refuses(environment: pytest.MonkeyPatch) -> None:
+    environment.setenv("INBOX_PULL_TOKEN", "too-short-a-secret")
+
+    with pytest.raises(ValidationError) as failure:
+        Settings()
+
+    assert "too-short-a-secret" not in str(failure.value)
+
+
 def test_does_not_start_with_the_same_token_for_uploading_and_pulling(
     environment: pytest.MonkeyPatch,
 ) -> None:

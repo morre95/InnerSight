@@ -12,7 +12,7 @@ class InboxError(Exception):
         self.message = message
 
 
-class MissingToken(InboxError):
+class InvalidToken(InboxError):
     status_code = 401
     code = "UNAUTHORIZED"
 
@@ -25,11 +25,6 @@ class TokenNotAllowed(InboxError):
 class InvalidUpload(InboxError):
     status_code = 400
     code = "INVALID_UPLOAD"
-
-
-class ImageTooLarge(InboxError):
-    status_code = 413
-    code = "IMAGE_TOO_LARGE"
 
 
 class ExampleNotFound(InboxError):

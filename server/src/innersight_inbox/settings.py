@@ -10,6 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 MIN_TOKEN_LENGTH = 32
 DEFAULT_MAX_EXAMPLES = 2000
 DEFAULT_MAX_IMAGE_BYTES = 5 * 1024 * 1024
+METADATA_ALLOWANCE_BYTES = 16 * 1024
 
 
 class Settings(BaseSettings):
@@ -19,7 +20,8 @@ class Settings(BaseSettings):
     else. Only the pull token, kept on the computer that trains, can read and remove them.
     """
 
-    model_config = SettingsConfigDict(env_prefix="INBOX_")
+    # A setting that is refused is not shown in the error, as it may be a token.
+    model_config = SettingsConfigDict(env_prefix="INBOX_", hide_input_in_errors=True)
 
     upload_token: SecretStr = Field(min_length=MIN_TOKEN_LENGTH)
     pull_token: SecretStr = Field(min_length=MIN_TOKEN_LENGTH)
@@ -34,6 +36,11 @@ class Settings(BaseSettings):
         if self.upload_token.get_secret_value() == self.pull_token.get_secret_value():
             raise ValueError("the upload token and the pull token must not be the same")
         return self
+
+    @property
+    def max_body_bytes(self) -> int:
+        """The largest request the inbox reads: a picture, and room for what is told about it."""
+        return self.max_image_bytes + METADATA_ALLOWANCE_BYTES
 
     @property
     def origins(self) -> list[str]:

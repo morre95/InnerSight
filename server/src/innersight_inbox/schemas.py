@@ -3,7 +3,7 @@ with 'innersight pull'; contract/example.json is the sample that all three are t
 """
 
 from datetime import datetime
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
@@ -52,3 +52,35 @@ class StoredExample(ExampleMetadata):
 
     id: str
     created_at: datetime
+
+
+class ExampleResponse(BaseModel):
+    success: Literal[True] = True
+    data: StoredExample
+
+
+class Pagination(BaseModel):
+    has_more: bool
+    next_after: str | None = Field(
+        description="Pass this as 'after' to get the examples that follow; null on the last page"
+    )
+
+
+class ListMeta(BaseModel):
+    pagination: Pagination
+
+
+class ExampleListResponse(BaseModel):
+    success: Literal[True] = True
+    data: list[StoredExample]
+    meta: ListMeta
+
+
+class ErrorBody(BaseModel):
+    code: str = Field(description="What went wrong, for a program to act on")
+    message: str = Field(description="What went wrong, for a person to read")
+
+
+class ErrorResponse(BaseModel):
+    success: Literal[False] = False
+    error: ErrorBody
