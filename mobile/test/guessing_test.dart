@@ -7,6 +7,7 @@ import 'package:innersight_mobile/src/card_picture.dart';
 import 'package:innersight_mobile/src/cards.dart';
 import 'package:innersight_mobile/src/game_screen.dart';
 import 'package:innersight_mobile/src/guessing.dart';
+import 'package:innersight_mobile/src/picture_view.dart';
 import 'package:innersight_mobile/src/result_board.dart';
 
 RecognizedCard _makeCard(

@@ -128,8 +128,10 @@ double-tap. The phone has no file log; its result board shows the same data.
 
 The session holds no images. `observe` returns the card of the round when it starts or is
 corrected; the input layer keeps the frame that card was read in for every locked round. On
-the desktop that is the whole frame (`RoundFrame` in `game.py`), on the phone the card cropped
-from it. The result board shows the card beside the round. The frames are kept in memory only.
+the desktop that is the whole frame (`RoundFrame` in `game.py`). On the phone it is the card
+cropped from it, and the whole frame as well (`RoundFrame` in `card_picture.dart`) only while
+collecting is turned on, as the web app is public and a frame is far larger than a crop. The
+result board shows the card beside the round. The frames are kept in memory only.
 
 ### Collecting misread cards
 
@@ -150,6 +152,14 @@ in a `CollectSession` that starts at the card set in the app, writes the saved o
 `save_collected`, and deletes from the server what was saved or discarded. The field names on
 the wire are pinned by `server/contract/example.json`, which the inbox, `tests/test_inbox.py`
 and a Dart test each read; change the three together.
+
+In the app, collecting is set under Advanced (`CollectSettings`, kept in the preferences through
+`CollectSettingsStore`). With it on, `HomeScreen` gives `GameScreen` an `ExampleUploader`, and
+the game keeps the frames in a `RoundCollector`, which also knows how far each upload has come.
+On the result board a tap on a round opens `TrueCardScreen`; the phone sets the true card with
+chips, so it has no port of `TrueCardPicker`, only the shared rule `fixedColor`. Uploads are PNG
+made with `dart:ui`, so a frame is not compressed twice. `HomeScreen` takes the settings store
+as a parameter and the uploader takes its HTTP client, so no test needs the network.
 
 ### Python conventions that are easy to miss
 

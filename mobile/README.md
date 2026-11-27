@@ -1,8 +1,12 @@
 # InnerSight for Android and web
 
 The Flutter app recognizes UNO cards and runs the guessing game on Android and
-in the browser. In the web build, camera frames and card recognition stay on
-the device. The app downloads the model and loads ONNX Runtime Web from jsDelivr.
+in the browser. Card recognition runs on the device, and camera frames stay
+there, with one exception that is off unless you turn it on: with "Collect
+misread cards" under Advanced, the frame of a round you choose on the result
+board is sent to the server whose address you entered. The app stores no
+pictures itself. The app downloads the model and loads ONNX Runtime Web from
+jsDelivr.
 
 ## Run in a browser
 

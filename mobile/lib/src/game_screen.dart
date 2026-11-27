@@ -9,11 +9,13 @@ import 'card_camera_view.dart';
 import 'card_overlay.dart';
 import 'card_picture.dart';
 import 'cards.dart';
+import 'example_uploader.dart';
 import 'frame_prep.dart';
 import 'guessing.dart';
 import 'overlay_panel.dart';
 import 'recognition.dart';
 import 'result_board.dart';
+import 'round_collector.dart';
 import 'tts_speaker.dart';
 
 /// A drag shorter than this many logical pixels is not a swipe.
@@ -41,6 +43,7 @@ class GameScreen extends StatefulWidget {
     required this.config,
     required this.minConfidence,
     required this.speaksResult,
+    this.uploader,
   });
 
   final int cardCount;
@@ -52,6 +55,10 @@ class GameScreen extends StatefulWidget {
 
   /// Whether the voice says the count of every answer when the game ends.
   final bool speaksResult;
+
+  /// Where the frames of misread cards are sent from the result board. Null
+  /// when the misread cards are not collected.
+  final ExampleUploader? uploader;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -73,6 +80,15 @@ class _GameScreenState extends State<GameScreen> {
   /// the model read.
   final List<CardPicture> _pictures = [];
 
+  /// The whole frame the card of the round being played was last read in.
+  /// Kept only when the misread cards are collected, as it is far larger
+  /// than the picture of the card.
+  RoundFrame? _frame;
+
+  /// Holds the frame of every locked round, when the misread cards are
+  /// collected.
+  RoundCollector? _collector;
+
   void _say(String phrase) => unawaited(_speaker.say(phrase));
 
   @override
@@ -84,6 +100,10 @@ class _GameScreenState extends State<GameScreen> {
       spokenRanks: widget.config.spokenRanks,
       speaksResult: widget.speaksResult,
     );
+    final uploader = widget.uploader;
+    if (uploader != null) {
+      _collector = RoundCollector(uploader: uploader, config: widget.config);
+    }
   }
 
   void _onCards(
@@ -99,6 +119,14 @@ class _GameScreenState extends State<GameScreen> {
           frame.uprightWidth,
           roundCard.detection.box,
         );
+        if (_collector != null) {
+          _frame = RoundFrame(
+            rgbBytes: frame.rgbBytes,
+            width: frame.uprightWidth,
+            height: frame.uprightHeight,
+            card: roundCard,
+          );
+        }
       }
     });
   }
@@ -142,6 +170,7 @@ class _GameScreenState extends State<GameScreen> {
       if (lockedRound != null) {
         // A round is only locked after its card was read, so it has a picture.
         _pictures.add(_picture!);
+        _collector?.addRound(_frame!);
       }
     });
   }
@@ -160,6 +189,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void dispose() {
     unawaited(_speaker.dispose());
+    _collector?.dispose();
     super.dispose();
   }
 
@@ -171,6 +201,7 @@ class _GameScreenState extends State<GameScreen> {
         body: ResultBoard(
           rounds: session.rounds,
           pictures: _pictures,
+          collector: _collector,
           onDone: () => Navigator.of(context).pop(),
         ),
       );
