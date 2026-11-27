@@ -1,0 +1,48 @@
+# The inbox behind Caddy, which serves it over HTTPS. Copy .env.example to .env first.
+services:
+  inbox:
+    build: .
+    restart: unless-stopped
+    environment:
+      INBOX_UPLOAD_TOKEN: ${INBOX_UPLOAD_TOKEN:?set INBOX_UPLOAD_TOKEN in .env}
+      INBOX_PULL_TOKEN: ${INBOX_PULL_TOKEN:?set INBOX_PULL_TOKEN in .env}
+      INBOX_ALLOWED_ORIGINS: ${INBOX_ALLOWED_ORIGINS:-}
+    volumes:
+      - inbox-data:/data
+    # The inbox can write to its data and to nothing else.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/healthz")
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - inbox
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      INBOX_DOMAIN: ${INBOX_DOMAIN:?set INBOX_DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  inbox-data:
+  caddy-data:
+  caddy-config:
