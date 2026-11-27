@@ -19,3 +19,6 @@ runs/
 mobile/assets/models/*.onnx
 
 assets/uno-cards
+
+# Claude Code worktrees are checkouts of this repository
+.claude/worktrees/
