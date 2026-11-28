@@ -21,6 +21,21 @@ curl https://inbox.example.com/healthz
 
 Ports 80 and 443 must be open. The examples are kept in the `inbox-data` volume.
 
+### On a server that already runs nginx
+
+Caddy cannot have ports 80 and 443 there. Start the inbox alone, open to the server itself
+only on port 8010, and let nginx pass the requests on:
+
+```bash
+docker compose -f compose.yaml -f compose.nginx.yaml up -d --build inbox
+cp nginx/inbox.conf /etc/nginx/sites-available/innersight-inbox   # then put in the domain
+ln -s /etc/nginx/sites-available/innersight-inbox /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+certbot --nginx -d inbox.example.com
+```
+
+`INBOX_DOMAIN` must still be set in `.env`, though only Caddy reads it.
+
 In the app, under Advanced, turn on collecting and enter `https://inbox.example.com` and the
 upload token. On the computer that trains, fetch the examples with the pull token:
 
@@ -76,7 +91,8 @@ An answer is `{"success": true, "data": ...}`, or
 | 500    | `INTERNAL_ERROR`    | The inbox failed; the cause is in its log, not in the answer |
 
 A request that is too large is answered with a plain 413 and no such body, as it is stopped
-before the inbox reads it: by Caddy above 6 MB, and by the framework above the picture limit.
+before the inbox reads it: by Caddy or nginx above 6 MB, and by the framework above the picture
+limit.
 
 ## What keeps the pictures safe
 

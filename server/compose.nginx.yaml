@@ -1,0 +1,7 @@
+# For a server where nginx already holds ports 80 and 443. It opens the inbox to the server
+# itself only, for nginx to pass requests on to. Start the inbox alone, without Caddy:
+#   docker compose -f compose.yaml -f compose.nginx.yaml up -d --build inbox
+services:
+  inbox:
+    ports:
+      - "127.0.0.1:8010:8000"
