@@ -161,6 +161,16 @@ void main() {
       expect(_colorOf(_numberCard(200, 235, 20)), CardColor.yellow);
     });
 
+    test('reads a yellow card that is dark beside its white as yellow', () {
+      // Held close in front of a bright ceiling, the white in the box is the
+      // ceiling, and the yellow is little more than half as bright.
+      expect(_colorOf(_numberCard(145, 113, 10)), CardColor.yellow);
+    });
+
+    test('reads a card that is very dark in the hues of yellow as green', () {
+      expect(_colorOf(_numberCard(77, 62, 5)), CardColor.green);
+    });
+
     test('tells yellow from green in weak light by the white of the card', () {
       const weakLight = (0.5, 0.5, 0.5);
 

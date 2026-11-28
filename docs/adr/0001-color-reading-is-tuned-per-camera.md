@@ -14,7 +14,12 @@ showed green cards in the hues of yellow, more so out of focus, while their brig
 them apart. Both measure that brightness against the white of the card: a fixed level
 called a well-lit green card yellow and a dimly lit yellow card green. Both also take a pixel
 for black, not colored, when it is dark as a share of that white: with a fixed level,
-darkened copies of the recorded images of both cameras lost their color. The desktop has
+darkened copies of the recorded images of both cameras lost their color. On the phone the
+brightness that yellow needs rises with the hue, from 0.4 of the white in the olive hues
+nearest yellow to 0.8: yellow cards held close in front of a bright ceiling, collected in the
+app, were read as green, because the white of their box was the ceiling and the card only
+0.53 to 0.65 as bright, a brightness that recorded green cards reach too. Their hue stayed
+that of yellow. The desktop has
 further steps the phone lacks (a
 stricter saturation for blue, red reaching down into purple, and saturation limits that
 are lowered when bright light behind the card washes it out, measured on

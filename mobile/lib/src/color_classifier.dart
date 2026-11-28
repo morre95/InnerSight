@@ -20,13 +20,24 @@ const double whitePercentile = 0.9;
 /// The phone camera shows a yellow card and a green card in nearly the same
 /// olive hues, most of all when it is out of focus. In these hues the
 /// brightness tells them apart: yellow is nearly as bright as the white of the
-/// card, green much darker.
+/// card, green much darker. How bright yellow has to be depends on the hue
+/// ([_minYellowBrightnessAt]).
 const int yellowOrGreenHueStart = 22;
 const int yellowOrGreenHueEnd = 48;
 
 /// In the olive hues a pixel is yellow when it is at least this bright,
 /// as a share of the white of the card.
 const double minYellowBrightness = 0.8;
+
+/// The olive hues nearest yellow need less brightness to be yellow. A yellow
+/// card held close in front of a bright ceiling is dark beside the white of
+/// its box, which is then the ceiling, but it keeps its hue. A green card
+/// seldom has these hues, and where it has, it is darker still. The limit
+/// rises evenly from this share at [yellowOrGreenHueStart] to
+/// [minYellowBrightness] at [fullYellowBrightnessHue]. Measured with
+/// `tool/measure_color_reading.dart` on `datasets/phone-cards`.
+const double minYellowBrightnessNearYellow = 0.4;
+const int fullYellowBrightnessHue = 34;
 
 /// Classifies the suit color of a UNO card from a packed RGB image and optional [box].
 ///
@@ -92,7 +103,6 @@ CardColor classifyCardColor({
   );
 
   final minColoredValue = minBrightness * whiteLevel;
-  final minYellowValue = minYellowBrightness * whiteLevel;
   final rowStride = imageWidth * 3;
   for (var y = centerY1; y < centerY2; y++) {
     final rowOffset = y * rowStride;
@@ -112,7 +122,7 @@ CardColor classifyCardColor({
       } else if (hue >= 12 && hue < yellowOrGreenHueStart) {
         yellowCount++;
       } else if (hue >= yellowOrGreenHueStart && hue < yellowOrGreenHueEnd) {
-        if (val >= minYellowValue) {
+        if (val >= _minYellowBrightnessAt(hue) * whiteLevel) {
           yellowCount++;
         } else {
           greenCount++;
@@ -149,6 +159,19 @@ CardColor classifyCardColor({
     return CardColor.unknown;
   }
   return dominantColor;
+}
+
+/// How bright a pixel of the olive [hue] has to be to count as yellow, as a
+/// share of the white of the card.
+double _minYellowBrightnessAt(int hue) {
+  if (hue >= fullYellowBrightnessHue) {
+    return minYellowBrightness;
+  }
+  final rise =
+      (hue - yellowOrGreenHueStart) /
+      (fullYellowBrightnessHue - yellowOrGreenHueStart);
+  return minYellowBrightnessNearYellow +
+      (minYellowBrightness - minYellowBrightnessNearYellow) * rise;
 }
 
 /// How much to scale red, green and blue to remove the tint of the light, so

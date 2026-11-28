@@ -71,6 +71,13 @@ it before and after any change to `color.py`:
 uv run python scripts/measure_color_reading.py
 ```
 
+The phone's color reading has its own measuring, of the Dart code and on the phone images; run
+it from `mobile/` before and after any change to `color_classifier.dart`:
+
+```bash
+dart run tool/measure_color_reading.dart
+```
+
 ## Architecture
 
 ### Recognition pipeline (both implementations)
